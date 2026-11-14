@@ -3,14 +3,16 @@
      同源相对路径，兼容 X-Frame-Options: SAMEORIGIN；不含任何脚本、固定域名或绝对 URL，
      因此同一份片段在任何 Halo 域名下都可直接粘贴使用。
      提示：iframe 需要点击一次游戏区域，方向键才会被捕获。
-     若 Halo 部署在子路径（如 /blog），把下方两处 /plugins/ 前缀改为 /blog/plugins/。 -->
+     若 Halo 部署在子路径（如 /blog），把下方两处 /plugins/ 前缀改为 /blog/plugins/。
+     自适应视口：iframe 高度按父视口剩余空间计算，游戏页棋盘同步缩放；浏览器保持 100% 缩放即可直接玩，无需缩小网页。
+-->
 <section style="max-width:920px;margin:0 auto">
   <iframe
     src="/plugins/plugin-game-2048/assets/game/index.html"
     title="2048 小游戏"
     loading="lazy"
-    style="display:block;width:100%;height:clamp(720px,92vh,900px);border:0;border-radius:12px;background:#faf8ef"></iframe>
-  <p style="margin:10px 0 0;font-size:13px;line-height:1.7;opacity:.75;text-align:center">
+    style="display:block;width:100%;height:clamp(420px,calc(100vh - 150px),860px);height:clamp(420px,calc(100dvh - 150px),860px);border:0;border-radius:12px;background:#faf8ef"></iframe>
+  <p style="margin:8px 0 0;font-size:13px;line-height:1.7;opacity:.75;text-align:center">
     点击游戏区域后使用方向键 / WASD 操作 ·
     <a href="/plugins/plugin-game-2048/assets/game/index.html" target="_blank" rel="noopener">全屏打开 ↗</a>
   </p>

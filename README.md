@@ -3,6 +3,8 @@
 一个完整可运行的 Halo 2.x 插件，为站点加入 2048 数字滑块游戏。**插件面向所有 Halo 站点，不绑定任何具体域名。**
 
 > **1.0.8 起：插件启动会自动创建并发布 slug 为 `game2048` 的页面**，装好 JAR 就能打开 `https://你的域名/game2048`，不再需要手动新建页面。原来手动粘贴片段的方式仍作为兜底保留。
+>
+> **1.0.9 起：游戏页自适应视口**，浏览器保持 100% 缩放即可一屏游玩，不用再手动缩小网页（见「自适应视口」）。
 
 ## 访问约定（硬性要求）：`https://你的域名/game2048`
 
@@ -18,6 +20,7 @@
 - **自动建页**：`Game2048PageInitializer` 在插件启动时幂等创建 `SinglePage` + 内容 `Snapshot`，已发布、公开、slug = `game2048`，重启不会重复创建、不覆盖已有内容
 - **前台唯一入口**：Halo 自定义页面 `/{slug}`（slug = `game2048`），内容用同源 iframe 承载游戏页
 - **静态游戏页**：`ReverseProxy` 暴露 `/plugins/plugin-game-2048/assets/game/index.html`，纯 HTML/CSS/JS，被上述页面引用
+- **自适应视口**：iframe 高度取父视口剩余空间，嵌入时精简重复页头，棋盘按可用高度动态缩放，`dvh` 兜底；100% 缩放直接可玩
 - **Ethereal 主题适配**：自动跟随站点明暗模式与 `--hue` 主题色，提供主题同款卡片容器，无需修改主题文件或注入脚本
 - **全站排行榜**：Halo 自定义模型 `GameScore` 持久化，公开 `CustomEndpoint` 读写，匿名角色模板授权
 - **任意博客也能用**：前台页是纯 HTML/CSS/JS，`standalone/` 提供免后端的单文件版与四文件版
@@ -120,7 +123,7 @@
 
 | 版本 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| **v1.0.8（最新）** | [plugin-game-2048-1.0.8.jar](https://github.com/LinuxOega/plugin-game-2048/releases/download/v1.0.8/plugin-game-2048-1.0.8.jar) | 37,937 B | `d9674832d3d9a9747f40fed404bc0ebc00ff432a9f2da9b6c04f61fc19480c4a` |
+| **v1.0.9（最新）** | [plugin-game-2048-1.0.9.jar](https://github.com/LinuxOega/plugin-game-2048/releases/download/v1.0.9/plugin-game-2048-1.0.9.jar) | 40,022 B | `043df78b4d29637554a789b505e8a160cdf89140b9b39d916cb09898957040e1` |
 
 发布页：[LinuxOega/plugin-game-2048 Releases](https://github.com/LinuxOega/plugin-game-2048/releases)，含各版本更新说明与附件。下载后按「使用方式」在 Halo 控制台上传 / 更新即可；源码构建步骤见下一节。
 
@@ -137,7 +140,7 @@ node scripts/build-blog-pack.mjs
 
 # 2) 一条命令完成：UI 依赖安装 + Vite 构建 + 全部 Node 测试 + Java 编译/单测 + JAR 打包
 ./gradlew build          # Windows: .\gradlew.bat build
-# 产物：build/libs/plugin-game-2048-1.0.8.jar（同一份 JAR 可用于任意域名）
+# 产物：build/libs/plugin-game-2048-1.0.9.jar（同一份 JAR 可用于任意域名）
 ```
 
 `./gradlew build` 仍会跑 `ui:npmInstall` / `vite build` / `npm test`（含域名无关契约测试），但 **Vite 产物不再复制进 JAR**：`build.gradle` 的 `jar` 显式 `exclude 'ui/**'` 与 `exclude 'ui-plugin.json'`，并在 `processResources` 之后清理旧残留。Halo 靠 `resources/ui/ui-plugin.json` 识别 Console 插件入口，JAR 里没有这个文件就不会注册侧边栏菜单。`ui/` 因此只承担「算法唯一源码 + Node 测试」的职责。也可以单独跑 `cd ui && npm install && npm test && npm run build`。
@@ -190,7 +193,7 @@ Halo 2.27 把页面正文存在 `Snapshot` 里，只有「已发布 + 公开 + �
   src="/plugins/plugin-game-2048/assets/game/index.html"
   title="2048 小游戏"
   loading="lazy"
-  style="display:block;width:100%;max-width:920px;height:clamp(720px,92vh,900px);border:0"></iframe>
+  style="display:block;width:100%;max-width:920px;height:clamp(420px,calc(100vh - 150px),860px);height:clamp(420px,calc(100dvh - 150px),860px);border:0"></iframe>
 ```
 
 iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若过滤 iframe，可直接写进主题模板。
@@ -224,6 +227,20 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 | 撤销 | 「撤销一步」按钮（保留最近一步）      |
 | 重开 | 「新游戏」按钮               |
 | 上榜 | 游戏结束自动提交，或点「提交成绩」手动提交 |
+
+### 自适应视口（无需缩小网页）
+
+**1.0.9 起不用再按 `Ctrl+-` 缩小浏览器。** 旧版 iframe 高度被固定为 720–900px，游戏页内部又是固定 460px 棋盘加两栏布局，外层主题还有标题与说明，三段高度相加超过一屏，只能靠浏览器缩放才能看全。现在改成三层自适应：
+
+| 层 | 做法 |
+| --- | --- |
+| 父页面 iframe | 片段高度改为 `clamp(420px, calc(100dvh - 150px), 860px)`（同时保留 `100vh` 兜底），即视口减去站点头部后的剩余空间 |
+| 同源 iframe 运行时 | 游戏页通过 `window.frameElement` 直接按父视口剩余高度修正 iframe 高度（420–880px）；窗口缩放、手机旋转、主题头部高度变化都会重算 |
+| 游戏页内部 | iframe 内自动启用 `is-embedded` 精简重复的标题 / 说明 / 页脚；棋盘按「视口高度 − 页头 − 工具栏 − 提示」动态计算宽度，CSS 另有 `100dvh` 兜底，JS 被禁用也不溢出 |
+
+因此**已装过旧版、页面里仍是旧 iframe 高度也无需重建页面**：更新 JAR 后，游戏页会从 iframe 内部把高度改好（只有同源页面才能这么做）。若想连容器样式一起换成新版，在后台编辑该页面，HTML / 源码模式整段替换 `deploy/ethereal/page.html` 即可——插件为避免覆盖你的编辑，不会自动改写已存在页面的正文。
+
+直接全屏打开 `/plugins/plugin-game-2048/assets/game/index.html`，或双击本地 `standalone/2048.html`，同样自适应；只是没有父页面可调整，走的是 CSS `dvh` 兜底加棋盘动态计算。契约测试 `ui/test/fit-viewport.test.mjs` 锁死了「不得再出现固定 iframe 高度」与无布局环境下的降级行为。
 
 ---
 
@@ -306,7 +323,7 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 ```html
 <iframe src="/plugins/plugin-game-2048/assets/game/index.html"
   title="2048 小游戏" loading="lazy"
-  style="display:block;width:100%;height:clamp(720px,92vh,900px);border:0"></iframe>
+  style="display:block;width:100%;height:clamp(420px,calc(100vh - 150px),860px);height:clamp(420px,calc(100dvh - 150px),860px);border:0"></iframe>
 ```
 
 `src` 必须是同源**相对**路径，不能写死任何域名或 CDN：既会被 `X-Frame-Options: SAMEORIGIN` 拒绝，也会让插件失去跨站点复用能力。正文零脚本，不怕编辑器过滤 `<script>`；若主题连 `iframe` 也过滤，就写进主题模板。想改成自己的排版可以直接编辑这个页面，插件重启时**不会覆盖你的内容**。
@@ -455,15 +472,15 @@ GET|PUT|DELETE /apis/game2048.halo.run/v1alpha1/gamescores/{name}
 
 已在本机实际执行并通过（2026-11-14，JDK 21.0.13+9 / Gradle 9.4.0 / Node 22）：
 
-- ✅ **`./gradlew build`：BUILD SUCCESSFUL** — `compileJava` / `compileTestJava` 真实编译通过，`jar` 产出 `build/libs/plugin-game-2048-1.0.8.jar`（38 KB / 27 条目）；自动建页改造后重新构建成功
-- ✅ **JAR 内容核验**：含 8 个 `.class`、`plugin.yaml`（version 1.0.8 / requires >=2.27.0）、**2 个 extensions YAML**（`reverse-proxy.yaml`、`role-template.yaml`）、`page/game2048.html`（自动建页正文）、`static/game/` 4 个前台文件、`META-INF/plugin-components.idx`（4 个组件，含 `Game2048PageInitializer`）；已确认 **无 `ui/`、无 `ui-plugin.json`、无 `menu-item.yaml`**，即不会注册 Console 菜单或前台导航项
+- ✅ **`./gradlew build`：BUILD SUCCESSFUL** — `compileJava` / `compileTestJava` 真实编译通过，`jar` 产出 `build/libs/plugin-game-2048-1.0.9.jar`（40 KB / 27 条目）；自适应视口改造后重新构建成功
+- ✅ **JAR 内容核验**：含 8 个 `.class`、`plugin.yaml`（version 1.0.9 / requires >=2.27.0）、**2 个 extensions YAML**（`reverse-proxy.yaml`、`role-template.yaml`）、`page/game2048.html`（自动建页正文）、`static/game/` 4 个前台文件、`META-INF/plugin-components.idx`（4 个组件，含 `Game2048PageInitializer`）；已确认 **无 `ui/`、无 `ui-plugin.json`、无 `menu-item.yaml`**，即不会注册 Console 菜单或前台导航项
 - ✅ **Java 单测 5/5 通过**（JUnit 5 + Mockito）：创建 `SinglePage` + 基础 `Snapshot` 的字段契约、已存在页面只修复不覆盖、健康页面零写入、slug 被占用时不重复创建、页面片段同源零脚本
-- ✅ **`npm test` / `ui:npmCheck`：55 项全部通过**（47 个顶层用例）— 核心算法 19 + 前台本地模式 6 + Halo 在线模式 4 + 静态部署包 4 + 仅前台构建契约与部署片段 5 + Ethereal 适配 7 + 域名无关契约 5 + **自动建页契约 5（对象/快照字段、幂等、片段同源、无域名、文档与清单）**
+- ✅ **`npm test` / `ui:npmCheck`：62 项全部通过**（54 个顶层用例）— 核心算法 19 + 前台本地模式 6 + Halo 在线模式 4 + 静态部署包 4 + 仅前台构建契约与部署片段 5 + Ethereal 适配 7 + 域名无关契约 5 + 自动建页契约 5 + **自适应视口契约 7（无固定 iframe 高度、dvh 兜底、运行时测量、静态包同步、jsdom 降级）**
 - ✅ `./gradlew --version` 自举下载 Gradle 9.4.0 并通过 sha256 校验；`java -version` / `javac -version` 均为 21.0.13
 - ✅ 7 个 Java 文件 + 1 个 JUnit 文件编译通过、3 个 YAML 解析、`theme-bridge.js` 语法检查、API 路径一致性检查通过
 - ✅ **线上只读实测（示例站点，不绑定域名）**：插件静态页四个资源 200；排行榜 API 返回真实成绩，匿名读写均通；`/about`、`/links` 200 验证 `/{slug}` 路由；当时 `/game2048` 404 正是 1.0.7 未自动建页导致的；Ethereal 2.1.0 的 `data-color-scheme` / `--hue` / `oklch` 变量均从渲染页面与主题 CSS 确认
 
-**仍未验证**：本机无 Docker、无本地 Halo 实例，因此**插件在真实 Halo 中写入 `SinglePage` / `Snapshot` 后，路由是否即时刷新、Console 菜单是否仍不出现、以及 `/game2048` 在浏览器里的实际表现**，需要你在站点上传 1.0.8 JAR 后确认。自动建页的字段契约、幂等分支与启动重试已由单测覆盖；Halo 2.27.3 的 `SinglePageEndpoint` / `SinglePageServiceImpl` / `SinglePageReconciler` / `SinglePageRoute` 源码已逐一对齐（发布条件 = `publish=true` + `visible=PUBLIC` + `releaseSnapshot` 指向存在的 `Snapshot` + `published` label）。域名无关性也由自动化测试覆盖：多个不同域名 / 协议 / 端口下，页面发出的请求完全一致且不含任何主机名。**纯前端静态包不依赖 Halo，可直接部署。**
+**仍未验证**：本机无 Docker、无本地 Halo 实例，因此**插件在真实 Halo 中写入 `SinglePage` / `Snapshot` 后，路由是否即时刷新、Console 菜单是否仍不出现、以及 `/game2048` 在浏览器里的实际表现**，需要你在站点上传 1.0.9 JAR 后确认。自动建页的字段契约、幂等分支与启动重试已由单测覆盖；Halo 2.27.3 的 `SinglePageEndpoint` / `SinglePageServiceImpl` / `SinglePageReconciler` / `SinglePageRoute` 源码已逐一对齐（发布条件 = `publish=true` + `visible=PUBLIC` + `releaseSnapshot` 指向存在的 `Snapshot` + `published` label）。域名无关性也由自动化测试覆盖：多个不同域名 / 协议 / 端口下，页面发出的请求完全一致且不含任何主机名。**纯前端静态包不依赖 Halo，可直接部署。**
 
 > 构建日志中有一条 `Deprecated Gradle features ... incompatible with Gradle 10` 提示，来自第三方 Gradle 插件，不影响 Gradle 9.4.0 构建；将来升级 Gradle 10 时需同步升级这些插件。
 

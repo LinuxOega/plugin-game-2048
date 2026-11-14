@@ -3,16 +3,18 @@
      不含固定域名或绝对 URL，任意 Halo 站点直接粘贴即可。
      容器复用 Ethereal 的 --card-bg / --primary / --radius-large 变量，
      游戏页内部会自动跟随站点的明暗切换与主题色相（同源 localStorage）。
-     若 Halo 部署在子路径（如 /blog），把下方两处 /plugins/ 前缀改为 /blog/plugins/。 -->
-<div style="max-width:920px;margin:0 auto;padding:8px;border-radius:var(--radius-large,1rem);background:var(--card-bg,#fff);border:1px solid color-mix(in oklab,var(--primary,#7c6cf0) 16%,transparent);box-shadow:0 6px 24px -16px rgba(0,0,0,.25)">
+     若 Halo 部署在子路径（如 /blog），把下方两处 /plugins/ 前缀改为 /blog/plugins/。
+     自适应视口：iframe 高度按父视口剩余空间计算，游戏页棋盘同步缩放；浏览器保持 100% 缩放即可直接玩，无需缩小网页。
+-->
+<div style="max-width:920px;margin:0 auto;padding:6px;border-radius:var(--radius-large,1rem);background:var(--card-bg,#fff);border:1px solid color-mix(in oklab,var(--primary,#7c6cf0) 16%,transparent);box-shadow:0 6px 24px -16px rgba(0,0,0,.25)">
   <iframe
     src="/plugins/plugin-game-2048/assets/game/index.html"
     data-game2048
     title="2048 小游戏"
     loading="lazy"
-    style="display:block;width:100%;height:clamp(720px,92vh,900px);border:0;border-radius:12px"></iframe>
+    style="display:block;width:100%;height:clamp(420px,calc(100vh - 150px),860px);height:clamp(420px,calc(100dvh - 150px),860px);border:0;border-radius:12px"></iframe>
 </div>
-<p style="max-width:920px;margin:10px auto 0;font-size:13px;line-height:1.7;opacity:.75;text-align:center">
+<p style="max-width:920px;margin:8px auto 0;font-size:13px;line-height:1.7;opacity:.75;text-align:center">
   点击游戏区域后使用方向键 / WASD 操作 ·
   <a href="/plugins/plugin-game-2048/assets/game/index.html" target="_blank" rel="noopener">全屏打开 ↗</a>
 </p>

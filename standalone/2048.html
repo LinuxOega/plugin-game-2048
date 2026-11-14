@@ -96,8 +96,16 @@ body {
 .status { min-height: 18px; margin: 8px 0 4px; font-size: 13px; color: #b5721b; }
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; margin-top: 10px; }
-.game { max-width: 460px; width: 100%; }
-.board-wrap { position: relative; }
+.game { max-width: 460px; width: 100%; min-width: 0; }
+/* Fit-to-viewport fallback: even if app.js is blocked, the square board must
+   shrink with the available viewport (dvh = the iframe height when embedded).
+   The JS fit routine below writes an exact inline width when layout is ready. */
+.board-wrap {
+  position: relative;
+  width: min(100%, 460px, calc(100vh - 250px));
+  width: min(100%, 460px, calc(100dvh - 250px));
+  margin: 0 auto;
+}
 
 .board {
   display: grid;
@@ -235,6 +243,32 @@ body {
 :root.theme-ethereal.dark .cell:not([class*="tile-"]) {
   background: color-mix(in oklab, var(--card-bg) 78%, transparent);
   color: var(--muted);
+}
+
+/* ---- Embedded fit-to-viewport --------------------------------------------
+   Inside the Halo page iframe the host already provides a title, description
+   and navigation. Dropping the duplicated chrome leaves the board the whole
+   viewport height, so visitors never need to zoom the browser out to play.
+   app.js adds `is-embedded` on the root element; without JS the dvh fallback
+   above still keeps the board inside the frame. */
+html.is-embedded body { padding: 10px 12px 12px; }
+html.is-embedded .back-link { display: none; }
+html.is-embedded .heading h1 { font-size: 28px; letter-spacing: -1px; }
+html.is-embedded .heading p,
+html.is-embedded .footer { display: none; }
+html.is-embedded .header { align-items: center; gap: 8px; }
+html.is-embedded .scores { gap: 6px; }
+html.is-embedded .score-box { min-width: 72px; padding: 5px 10px; }
+html.is-embedded .score-box strong { font-size: 20px; }
+html.is-embedded .toolbar { margin: 10px 0 4px; gap: 6px; }
+html.is-embedded .btn, html.is-embedded #player { padding: 6px 10px; }
+html.is-embedded .status { min-height: 0; margin: 2px 0; }
+html.is-embedded .layout { gap: 14px; margin-top: 4px; }
+html.is-embedded .hint { margin-top: 6px; }
+html.is-embedded .rank-panel {
+  padding: 10px;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
 }
 
 </style>
@@ -682,6 +716,129 @@ window.GAME2048_CONFIG = { mode: 'local' };
     });
     apply();
   }
+
+  // ---- Fit-to-viewport ---------------------------------------------------
+  // Keep the whole game visible at 100% browser zoom. Embedded in the
+  // same-origin Halo page, the iframe is resized to the space left in the host
+  // viewport and the board is sized from the height left after the header,
+  // toolbar and hints. Everything is measured at runtime, so it also works
+  // after a window resize, a phone rotation or a theme with a taller header.
+  function setupFitToViewport() {
+    const root = document.documentElement;
+    if (embedded) root.classList.add('is-embedded');
+
+    const appEl = document.querySelector('.app');
+    const wrap = document.querySelector('.board-wrap');
+    const gameEl = document.querySelector('.game');
+    if (!appEl || !wrap || !gameEl) return;
+    // No layout engine (jsdom / hidden iframe): rely on the CSS dvh fallback
+    // and do not register observers or timers that could outlive the document.
+    const probe = appEl.getBoundingClientRect();
+    if (!probe || !probe.height) return;
+
+    let frame = null;
+    try {
+      if (embedded && window.frameElement && window.parent !== window) {
+        frame = window.frameElement;
+      }
+    } catch (e) {
+      frame = null; // cross-origin frame: the host keeps its own height
+    }
+
+    const num = (value) => (Number.isFinite(value) ? value : 0);
+    const heightOf = (selector) => {
+      const el = document.querySelector(selector);
+      if (!el || el.hidden) return 0;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none') return 0;
+      return el.getBoundingClientRect().height
+        + num(parseFloat(style.marginTop)) + num(parseFloat(style.marginBottom));
+    };
+
+    const FRAME_MIN = 420;
+    const FRAME_MAX = 880;
+    const BOARD_MAX = 460;
+    const BOARD_MIN = 220;
+    let lastFrame = -1;
+    let lastBoard = -1;
+    let queued = false;
+
+    function fitFrame() {
+      if (!frame || !frame.style) return;
+      try {
+        const viewport = window.parent.innerHeight;
+        if (!viewport) return;
+        const top = frame.getBoundingClientRect().top;
+        // frameElement's rect is relative to the host document viewport. While
+        // the iframe is still below the fold (lazy loading, long article),
+        // keep the host page's dvh-based height instead of shrinking it.
+        if (top > viewport * 0.85) return;
+        const offset = Math.max(0, Math.min(num(top), viewport));
+        const wanted = Math.round(Math.max(FRAME_MIN,
+          Math.min(FRAME_MAX, viewport - offset - 24)));
+        if (wanted !== lastFrame) {
+          lastFrame = wanted;
+          frame.style.height = `${wanted}px`;
+        }
+      } catch (e) { /* restricted frame: keep host height */ }
+    }
+
+    function fitBoard() {
+      const viewport = window.innerHeight || root.clientHeight;
+      if (!viewport) return;
+      const bodyStyle = window.getComputedStyle(document.body);
+      const gameStyle = window.getComputedStyle(gameEl);
+      const layoutEl = document.querySelector('.layout');
+      const layoutStyle = layoutEl ? window.getComputedStyle(layoutEl) : null;
+      const chrome = num(parseFloat(bodyStyle.paddingTop))
+        + num(parseFloat(bodyStyle.paddingBottom))
+        + num(parseFloat(gameStyle.paddingTop))
+        + num(parseFloat(gameStyle.paddingBottom))
+        + (layoutStyle ? num(parseFloat(layoutStyle.marginTop)) : 0)
+        + heightOf('.back-link') + heightOf('.header') + heightOf('.toolbar')
+        + heightOf('.status') + heightOf('.hint') + heightOf('.touch-controls')
+        + heightOf('.footer') + 12;
+      const availableHeight = viewport - chrome;
+      const availableWidth = gameEl.clientWidth
+        - num(parseFloat(gameStyle.paddingLeft))
+        - num(parseFloat(gameStyle.paddingRight));
+      const width = Math.max(BOARD_MIN, Math.floor(Math.min(
+        BOARD_MAX, availableWidth, availableHeight
+      )));
+      if (width !== lastBoard) {
+        lastBoard = width;
+        wrap.style.width = `${width}px`;
+      }
+    }
+
+    const schedule = () => {
+      if (queued) return;
+      queued = true;
+      const raf = window.requestAnimationFrame || ((cb) => setTimeout(cb, 16));
+      raf(() => {
+        queued = false;
+        fitFrame();
+        fitBoard();
+      });
+    };
+
+    fitFrame();
+    schedule();
+    window.addEventListener('resize', schedule);
+    if (frame) {
+      try {
+        window.parent.addEventListener('resize', schedule);
+        window.parent.addEventListener('scroll', schedule, { passive: true });
+      } catch (e) { /* noop */ }
+    }
+    if (window.ResizeObserver) {
+      new window.ResizeObserver(schedule).observe(appEl);
+    }
+    if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+      document.fonts.ready.then(schedule).catch(() => {});
+    }
+  }
+
   function readLocalBoard() {
     try {
       const rows = JSON.parse(readText(LOCAL_KEY) || '[]');
@@ -921,6 +1078,7 @@ window.GAME2048_CONFIG = { mode: 'local' };
   }
 
   setupThemeSync();
+  setupFitToViewport();
   render();
   loadRank();
 })();
