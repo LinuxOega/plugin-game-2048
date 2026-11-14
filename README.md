@@ -114,6 +114,18 @@
 
 </details>
 
+## 下载（推荐）
+
+不想装 JDK / Gradle 时，直接用 GitHub Release 里已构建好的 JAR：
+
+| 版本 | 文件 | 大小 | SHA-256 |
+| --- | --- | --- | --- |
+| **v1.0.8（最新）** | [plugin-game-2048-1.0.8.jar](https://github.com/LinuxOega/plugin-game-2048/releases/download/v1.0.8/plugin-game-2048-1.0.8.jar) | 37,937 B | `d9674832d3d9a9747f40fed404bc0ebc00ff432a9f2da9b6c04f61fc19480c4a` |
+
+发布页：[LinuxOega/plugin-game-2048 Releases](https://github.com/LinuxOega/plugin-game-2048/releases)，含各版本更新说明与附件。下载后按「使用方式」在 Halo 控制台上传 / 更新即可；源码构建步骤见下一节。
+
+> Release 附件实际从 `objects.githubusercontent.com` 下载，部分网络环境下不可达；此时改用下面的本地构建，产物与 Release 完全一致。`.gitignore` 有意不把 JAR 放进源码仓库，避免二进制文件随每次提交膨胀。
+
 ## 构建
 
 ```bash
