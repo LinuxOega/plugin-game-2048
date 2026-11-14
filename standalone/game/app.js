@@ -1,0 +1,404 @@
+/**
+ * Standalone 2048 page controller.
+ *
+ * Runs in two modes:
+ *  - Under Halo (/plugins/<name>/assets/game/index.html): uses the plugin's
+ *    public leaderboard API for the site-wide ranking.
+ *  - Opened directly as a local file (or any non-Halo host): falls back to a
+ *    browser-local leaderboard so the page is still fully playable.
+ */
+(function () {
+  'use strict';
+
+  const core = window.Game2048Core;
+  if (!core) {
+    document.body.textContent = '游戏核心加载失败，请检查 game-core.js 是否存在。';
+    return;
+  }
+
+  const BEST_KEY = 'halo-game2048-best';
+  const NAME_KEY = 'halo-game2048-player';
+  const LOCAL_KEY = 'halo-game2048-local-board';
+  const DEFAULT_API_BASE = '/apis/api.game2048.halo.run/v1alpha1/scores';
+  const HALO_GAME_PATH = /\/plugins\/plugin-game-2048\/assets\/game\//;
+  const HTTP = location.protocol === 'http:' || location.protocol === 'https:';
+  const config = (window.GAME2048_CONFIG && typeof window.GAME2048_CONFIG === 'object')
+    ? window.GAME2048_CONFIG
+    : {};
+
+  // Mode resolution (most explicit wins):
+  //   1. GAME2048_CONFIG.mode = 'local'   -> never touch the network.
+  //   2. GAME2048_CONFIG.apiBase = '...'  -> custom leaderboard endpoint.
+  //   3. Served from the plugin's own ReverseProxy path -> Halo leaderboard API.
+  //   4. Any other host/path (static blog, object storage, file://) -> local board.
+  // The old heuristic matched any path containing /plugins/, which could make a
+  // plain blog fire a doomed request to /apis/... on every visit.
+  let API_BASE = null;
+  if (config.mode === 'local') {
+    API_BASE = null;
+  } else if (typeof config.apiBase === 'string' && config.apiBase.trim()) {
+    API_BASE = config.apiBase.trim();
+  } else if (HTTP && HALO_GAME_PATH.test(location.pathname)) {
+    API_BASE = DEFAULT_API_BASE;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const boardEl = $('board');
+  const scoreEl = $('score');
+  const bestEl = $('best');
+  const movesEl = $('moves');
+  const maxTileEl = $('max-tile');
+  const overlayEl = $('overlay');
+  const overDetailEl = $('over-detail');
+  const statusEl = $('status');
+  const playerInput = $('player');
+  const undoBtn = $('undo');
+  const submitBtn = $('submit');
+  const rankList = $('rank-list');
+  const rankEmpty = $('rank-empty');
+  const rankTitle = $('rank-title');
+
+  // A top-level Halo page is reachable from the site's navigation menu, so give
+  // visitors a way back. Inside an iframe the host page already has navigation,
+  // and static/local deployments never show this link. `embedded: true` is an
+  // explicit override for sandboxed frames where window.top is not comparable.
+  const backLink = $('back-link');
+  const embedded = config.embedded === true || window.self !== window.top;
+  if (backLink && API_BASE && !embedded) {
+    backLink.href = typeof config.homeUrl === 'string' && config.homeUrl.trim()
+      ? config.homeUrl.trim()
+      : '/';
+    backLink.hidden = false;
+  }
+
+  let best = readNumber(BEST_KEY);
+  let state = { board: core.createInitialState(4).board, score: 0, won: false };
+  let history = null;
+  let moves = 0;
+  let over = false;
+  let submitted = false;
+
+  function readText(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function writeText(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { /* private mode */ }
+  }
+  function readNumber(key) {
+    const n = Number(readText(key));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  // ---- Halo / Ethereal theme integration ---------------------------------
+  // The game page is a standalone document served through ReverseProxy, so it
+  // does not inherit the theme's CSS variables. Ethereal (Fuwari-style, Astro)
+  // keeps its colour scheme in same-origin localStorage and defines --hue,
+  // --primary, --card-bg ... on :root / :root.dark. Sharing the origin lets us
+  // read those values and follow the visitor's light/dark and hue switches via
+  // `storage` events, without touching theme files or injecting any script.
+  const THEME_KEYS = ['theme', '__user_chose_theme', 'hue', 'bannerDisplay'];
+  const SCHEME_CLASSES = ['color-scheme-auto', 'color-scheme-light', 'color-scheme-dark'];
+
+  function setupThemeSync() {
+    const root = document.documentElement;
+    const preference = config.theme; // undefined (auto) | 'ethereal' | 'off'
+    if (preference === 'off') return;
+
+    const forced = preference === 'ethereal';
+    // Only auto-detect on Halo deployments: a plain static blog may share
+    // localStorage keys with unrelated scripts and should keep the classic skin.
+    const detected = forced || (!!API_BASE && THEME_KEYS.some((key) => readText(key) !== null));
+    if (!detected) return;
+
+    root.classList.add('theme-ethereal');
+    let override = null; // optional same-origin postMessage from the host page
+    let overrideHue = null;
+
+    function systemDark() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    function resolveMode() {
+      if (override === 'light' || override === 'dark' || override === 'auto') return override;
+      // Mirrors Ethereal's boot script: only honour localStorage.theme when the
+      // visitor has explicitly chosen a scheme.
+      const userChose = readText('__user_chose_theme') !== null;
+      const stored = userChose ? readText('theme') : null;
+      return stored === 'light' || stored === 'dark' ? stored : 'auto';
+    }
+    function apply() {
+      const mode = resolveMode();
+      const dark = mode === 'dark' || (mode === 'auto' && systemDark());
+      root.classList.toggle('dark', dark);
+      root.classList.remove(...SCHEME_CLASSES);
+      root.classList.add(`color-scheme-${mode}`);
+      // Halo's public plugin colour marker (docs: theme/plugin-integration).
+      root.dataset.colorScheme = mode;
+      const hue = readText('hue');
+      root.style.setProperty('--hue', overrideHue
+        || (hue && /^\d+$/.test(hue) ? hue : String(config.defaultHue || 250)));
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (!event.key || THEME_KEYS.indexOf(event.key) !== -1) apply();
+    });
+    if (window.matchMedia) {
+      const query = window.matchMedia('(prefers-color-scheme: dark)');
+      if (query.addEventListener) query.addEventListener('change', apply);
+      else if (query.addListener) query.addListener(apply);
+    }
+    window.addEventListener('message', (event) => {
+      if (event.origin !== location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== 'game2048:theme') return;
+      if (data.scheme === 'light' || data.scheme === 'dark' || data.scheme === 'auto') {
+        override = data.scheme;
+      }
+      if (data.hue != null && /^\d+$/.test(String(data.hue))) {
+        overrideHue = String(data.hue);
+      }
+      apply();
+    });
+    apply();
+  }
+  function readLocalBoard() {
+    try {
+      const rows = JSON.parse(readText(LOCAL_KEY) || '[]');
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setStatus(text) {
+    statusEl.textContent = text || '';
+  }
+
+  function tileClass(value) {
+    if (value === 0) return '';
+    return value > 2048 ? 'tile-super' : `tile-${value}`;
+  }
+  function digitClass(value) {
+    if (value >= 1024) return 'digit-4';
+    if (value >= 128) return 'digit-3';
+    return 'digit-2';
+  }
+
+  function syncButtons() {
+    undoBtn.disabled = !history;
+    submitBtn.disabled = submitted;
+  }
+
+  function render() {
+    const fragment = document.createDocumentFragment();
+    state.board.forEach((row) => {
+      row.forEach((value) => {
+        const cell = document.createElement('div');
+        cell.className = ['cell', tileClass(value), digitClass(value)].filter(Boolean).join(' ');
+        if (value) cell.textContent = String(value);
+        fragment.appendChild(cell);
+      });
+    });
+    boardEl.replaceChildren(fragment);
+    scoreEl.textContent = String(state.score);
+    bestEl.textContent = String(best);
+    movesEl.textContent = String(moves);
+    maxTileEl.textContent = String(core.getMaxTile(state.board));
+    overlayEl.hidden = !over;
+    if (over) {
+      overDetailEl.textContent = `得分 ${state.score} · 最大方块 ${core.getMaxTile(state.board)}`;
+    }
+    syncButtons();
+  }
+
+  function renderRank(rows) {
+    rankList.replaceChildren();
+    rows.slice(0, 10).forEach((row, index) => {
+      const li = document.createElement('li');
+      const rank = document.createElement('span');
+      rank.className = 'rank';
+      rank.textContent = String(index + 1);
+      const name = document.createElement('span');
+      name.className = 'name';
+      // textContent keeps player-supplied names inert (no HTML injection).
+      name.textContent = String(row.player || '匿名玩家');
+      const score = document.createElement('span');
+      score.className = 'score';
+      score.textContent = String(Number(row.score) || 0);
+      li.append(rank, name, score);
+      rankList.appendChild(li);
+    });
+    const empty = rows.length === 0;
+    rankEmpty.hidden = !empty;
+    rankEmpty.textContent = empty
+      ? (API_BASE ? '还没有人上榜，快来占个坑' : '本地模式：成绩仅保存在此浏览器')
+      : '';
+  }
+
+  function loadRank() {
+    rankTitle.textContent = API_BASE ? '全站排行榜' : '本地排行榜';
+    if (!API_BASE) {
+      renderRank(readLocalBoard());
+      return;
+    }
+    fetch(`${API_BASE}?size=10`, { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((data) => renderRank(Array.isArray(data) ? data : []))
+      .catch(() => {
+        setStatus('在线排行榜不可用，已切换为本地排行榜');
+        renderRank(readLocalBoard());
+      });
+  }
+
+  function saveLocal(row) {
+    const rows = readLocalBoard();
+    rows.push(Object.assign({ createdAt: new Date().toISOString() }, row));
+    rows.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+    writeText(LOCAL_KEY, JSON.stringify(rows.slice(0, 10)));
+    submitted = true;
+    renderRank(readLocalBoard());
+    syncButtons();
+  }
+
+  function reportScore() {
+    if (submitted) {
+      setStatus('本局成绩已提交过');
+      return;
+    }
+    const name = (playerInput.value || '').trim().slice(0, 24) || '匿名玩家';
+    writeText(NAME_KEY, name);
+    const payload = {
+      player: name,
+      score: state.score,
+      maxTile: core.getMaxTile(state.board),
+      moves: moves,
+      won: state.won,
+    };
+    if (!API_BASE) {
+      saveLocal(payload);
+      setStatus('本地模式：成绩已保存在此浏览器');
+      return;
+    }
+    fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(() => {
+        submitted = true;
+        setStatus('成绩已提交到全站排行榜');
+        loadRank();
+        syncButtons();
+      })
+      .catch(() => {
+        setStatus('在线提交失败，成绩已保存到本地排行榜');
+        saveLocal(payload);
+      });
+  }
+
+  function newGame() {
+    state = { board: core.createInitialState(4).board, score: 0, won: false };
+    history = null;
+    moves = 0;
+    over = false;
+    submitted = false;
+    setStatus('');
+    render();
+  }
+
+  function undo() {
+    if (!history) return;
+    state = { board: history.board, score: history.score, won: history.won };
+    moves = history.moves;
+    over = history.over;
+    history = null;
+    submitted = false;
+    setStatus('');
+    render();
+  }
+
+  function move(direction) {
+    if (over) return;
+    const wasWon = state.won;
+    const result = core.applyTurn(state, direction);
+    if (!result.moved) return;
+
+    history = {
+      board: core.cloneBoard(state.board),
+      score: state.score,
+      won: state.won,
+      moves: moves,
+      over: over,
+    };
+    moves += 1;
+    state = { board: result.board, score: result.score, won: result.won };
+    if (result.score > best) {
+      best = result.score;
+      writeText(BEST_KEY, String(best));
+    }
+    over = result.over === true || !core.hasMoves(result.board);
+    if (result.won && !wasWon) setStatus('达成 2048！继续挑战更高分吧');
+    render();
+    if (over) reportScore();
+  }
+
+  const KEY_MAP = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right',
+    W: 'up', S: 'down', A: 'left', D: 'right',
+  };
+
+  window.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+    if (target && target.isContentEditable) return;
+    const direction = KEY_MAP[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    move(direction);
+  });
+
+  let touchStart = null;
+  boardEl.addEventListener('touchstart', (event) => {
+    const touch = event.touches[0];
+    if (touch) touchStart = { x: touch.clientX, y: touch.clientY };
+  }, { passive: true });
+  boardEl.addEventListener('touchend', (event) => {
+    if (!touchStart) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStart.x;
+    const dy = touch.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    event.preventDefault();
+    move(Math.abs(dx) > Math.abs(dy)
+      ? (dx > 0 ? 'right' : 'left')
+      : (dy > 0 ? 'down' : 'up'));
+  }, { passive: false });
+
+  $('new-game').addEventListener('click', newGame);
+  $('retry').addEventListener('click', newGame);
+  undoBtn.addEventListener('click', undo);
+  submitBtn.addEventListener('click', reportScore);
+  $('refresh').addEventListener('click', loadRank);
+  playerInput.value = readText(NAME_KEY) || '';
+
+  // Do not advertise a Halo plugin when the page is deployed on a plain blog.
+  const footerEl = document.querySelector('.footer');
+  if (footerEl) {
+    footerEl.textContent = API_BASE
+      ? 'Powered by Halo 插件 · 2048 小游戏'
+      : '2048 小游戏 · 成绩仅保存在此浏览器';
+  }
+
+  setupThemeSync();
+  render();
+  loadRank();
+})();

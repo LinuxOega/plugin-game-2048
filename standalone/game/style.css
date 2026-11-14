@@ -1,0 +1,229 @@
+:root {
+  --bg: #faf8ef;
+  --panel: #ffffff;
+  --text: #776e65;
+  --muted: #9b8f84;
+  --line: #e5ddd2;
+  --board: #bbada0;
+  --accent: #8f7a66;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px 16px 40px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app { max-width: 900px; margin: 0 auto; }
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: none;
+}
+.back-link:hover { text-decoration: underline; }
+/* Author styles override the UA [hidden] rule, so hide it explicitly. */
+.back-link[hidden] { display: none; }
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading h1 { margin: 0; font-size: 56px; line-height: 1; letter-spacing: -2px; }
+.heading p { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+
+.scores { display: flex; gap: 10px; }
+.score-box {
+  min-width: 92px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--board);
+  color: #f9f6f2;
+  text-align: center;
+}
+.score-box span { display: block; font-size: 11px; opacity: 0.8; }
+.score-box strong { display: block; font-size: 24px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 6px; }
+#player {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+}
+#player:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn {
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn:hover:not(:disabled) { background: #f1ece3; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #7d6856; }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+
+.status { min-height: 18px; margin: 8px 0 4px; font-size: 13px; color: #b5721b; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; margin-top: 10px; }
+.game { max-width: 460px; width: 100%; }
+.board-wrap { position: relative; }
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--board);
+  aspect-ratio: 1;
+  touch-action: none;
+  user-select: none;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(238, 228, 218, 0.35);
+  color: #776e65;
+  font-weight: 700;
+  font-size: clamp(20px, 4.5vw, 40px);
+  animation: pop 0.12s ease-out;
+}
+.cell.digit-3 { font-size: clamp(17px, 3.8vw, 32px); }
+.cell.digit-4 { font-size: clamp(14px, 3vw, 26px); }
+@keyframes pop { from { transform: scale(0.86); } to { transform: scale(1); } }
+
+.tile-2 { background: #eee4da; }
+.tile-4 { background: #ede0c8; }
+.tile-8 { background: #f2b179; color: #f9f6f2; }
+.tile-16 { background: #f59563; color: #f9f6f2; }
+.tile-32 { background: #f67c5f; color: #f9f6f2; }
+.tile-64 { background: #f65e3b; color: #f9f6f2; }
+.tile-128 { background: #edcf72; color: #f9f6f2; }
+.tile-256 { background: #edcc61; color: #f9f6f2; }
+.tile-512 { background: #edc850; color: #f9f6f2; }
+.tile-1024 { background: #edc53f; color: #f9f6f2; }
+.tile-2048, .tile-super { background: #edc22e; color: #f9f6f2; }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: 10px;
+  background: rgba(250, 248, 239, 0.88);
+  text-align: center;
+}
+.overlay[hidden] { display: none; }
+.overlay strong { font-size: 30px; }
+.overlay span { font-size: 14px; }
+
+.hint { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+
+.rank-panel { padding: 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); align-self: start; }
+.rank-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.rank-head h2 { margin: 0; font-size: 16px; }
+.rank-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+.rank-list li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.rank-list .rank { width: 20px; text-align: center; color: var(--muted); }
+.rank-list .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-list .score { font-weight: 700; }
+.rank-empty { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.rank-empty[hidden] { display: none; }
+
+.footer { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; }
+
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+  .game { max-width: none; }
+  .heading h1 { font-size: 44px; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1b1a;
+    --panel: #262421;
+    --text: #e8e2d9;
+    --muted: #a89b8c;
+    --line: #3a3632;
+    --accent: #a78b71;
+  }
+  .btn:hover:not(:disabled) { background: #332f2a; }
+  .overlay { background: rgba(28, 27, 26, 0.88); }
+}
+
+/* ---- Halo / Ethereal theme integration ---------------------------------
+   Enabled by app.js when the host site is Ethereal. These variables mirror
+   Ethereal's own :root / :root.dark definitions, so the game follows the
+   site's accent hue, card background and light/dark switch. The 2048 tiles
+   keep their classic palette for readability and instant recognition.
+   Higher specificity than the :root rules above means this wins regardless
+   of the OS-level prefers-color-scheme media query. */
+:root.theme-ethereal {
+  --hue: 250;
+  --primary: oklch(.7 .14 var(--hue));
+  --card-bg: white;
+  --deep-text: oklch(.25 .02 var(--hue));
+  --btn-regular-bg: oklch(.95 .025 var(--hue));
+
+  --bg: var(--card-bg);
+  --panel: var(--card-bg);
+  --text: var(--deep-text);
+  --muted: color-mix(in oklab, var(--deep-text) 62%, transparent);
+  --line: color-mix(in oklab, var(--primary) 16%, transparent);
+  --accent: var(--primary);
+  --board: color-mix(in oklab, var(--primary) 10%, #bbada0);
+}
+:root.theme-ethereal.dark {
+  --primary: oklch(.75 .14 var(--hue));
+  --card-bg: oklch(.23 .015 var(--hue));
+  --deep-text: oklch(.85 .02 var(--hue));
+  --btn-regular-bg: oklch(.33 .035 var(--hue));
+}
+:root.theme-ethereal body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+:root.theme-ethereal .score-box {
+  background: var(--btn-regular-bg);
+  color: var(--deep-text);
+}
+:root.theme-ethereal .btn:hover:not(:disabled) { background: var(--btn-regular-bg); }
+:root.theme-ethereal .btn.primary:hover {
+  background: color-mix(in oklab, var(--primary) 85%, black);
+}
+:root.theme-ethereal .status,
+:root.theme-ethereal .rank-list .score { color: var(--primary); }
+:root.theme-ethereal .overlay {
+  background: color-mix(in oklab, var(--card-bg) 88%, transparent);
+}
+:root.theme-ethereal.dark .cell:not([class*="tile-"]) {
+  background: color-mix(in oklab, var(--card-bg) 78%, transparent);
+  color: var(--muted);
+}

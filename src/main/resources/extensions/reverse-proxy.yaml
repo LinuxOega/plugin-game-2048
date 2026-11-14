@@ -1,0 +1,11 @@
+# Expose the standalone game page at:
+#   /plugins/plugin-game-2048/assets/game/index.html
+# Files are read from src/main/resources/static/game relative to the plugin root.
+apiVersion: plugin.halo.run/v1alpha1
+kind: ReverseProxy
+metadata:
+  name: plugin-game-2048-static
+rules:
+  - path: /game/**
+    file:
+      directory: static/game

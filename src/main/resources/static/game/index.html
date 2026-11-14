@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="2048 小游戏 — 可独立部署或嵌入文章、自定义页面的纯前端游戏页">
+  <title>2048 小游戏</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <!-- Shown only when the page is opened as a top-level Halo page (not in an iframe). -->
+    <a id="back-link" class="back-link" href="/" hidden>← 返回博客首页</a>
+
+    <header class="header">
+      <div class="heading">
+        <h1>2048</h1>
+        <p>合并相同数字，冲上 2048。方向键 / WASD 或滑动屏幕操作。</p>
+      </div>
+      <div class="scores">
+        <div class="score-box"><span>分数</span><strong id="score">0</strong></div>
+        <div class="score-box"><span>最高分</span><strong id="best">0</strong></div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <input id="player" type="text" maxlength="24" placeholder="排行榜昵称（最多 24 字）" aria-label="排行榜昵称">
+      <button id="new-game" type="button" class="btn primary">新游戏</button>
+      <button id="undo" type="button" class="btn">撤销一步</button>
+      <button id="submit" type="button" class="btn">提交成绩</button>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <div class="layout">
+      <section class="game">
+        <div class="board-wrap">
+          <div id="board" class="board" role="application" aria-label="2048 棋盘"></div>
+          <div id="overlay" class="overlay" hidden>
+            <strong>游戏结束</strong>
+            <span id="over-detail"></span>
+            <button id="retry" type="button" class="btn primary">再来一局</button>
+          </div>
+        </div>
+        <p class="hint">步数 <span id="moves">0</span> · 最大方块 <span id="max-tile">2</span></p>
+      </section>
+
+      <aside class="rank-panel">
+        <div class="rank-head">
+          <h2 id="rank-title">全站排行榜</h2>
+          <button id="refresh" type="button" class="btn small">刷新</button>
+        </div>
+        <ol id="rank-list" class="rank-list"></ol>
+        <p id="rank-empty" class="rank-empty">加载中…</p>
+      </aside>
+    </div>
+
+    <footer class="footer">2048 小游戏 · 成绩仅保存在此浏览器</footer>
+  </main>
+
+  <!-- 可选配置：在下方脚本之前设置 window.GAME2048_CONFIG
+       { mode: 'local' } 强制本地榜；{ apiBase: 'https://...' } 指向自定义排行榜 API；
+       { homeUrl: '/' } 设置顶部「返回博客首页」链接；{ embedded: true } 强制隐藏该链接。
+       返回链接仅在 Halo 顶层页面显示，iframe 内与本地模式自动隐藏。
+       { theme: 'off' } 关闭 Ethereal 主题跟随；{ theme: 'ethereal' } 强制启用；
+       { defaultHue: 250 } 设置主题色相（默认 250）。未配置时自动识别同源 Ethereal 站点。
+       默认仅在 Halo 插件路径下启用全站榜，其他任何位置都用浏览器本地榜。 -->
+  <!-- game-core.js is generated from ui/src/core/game2048.js -->
+  <script src="./game-core.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
