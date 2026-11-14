@@ -1,6 +1,10 @@
 package run.halo.game2048;
 
+import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.index.IndexSpecs;
@@ -8,17 +12,24 @@ import run.halo.app.plugin.BasePlugin;
 import run.halo.app.plugin.PluginContext;
 
 /**
- * Plugin entry point. Registers the GameScore scheme (and the score index used
- * by the leaderboard query) on start, and unregisters it symmetrically on stop.
+ * Plugin entry point. On start it registers the GameScore scheme (and the score
+ * index used by the leaderboard query) and idempotently creates the public
+ * SinglePage that serves the game at /game2048. On stop it unregisters the
+ * custom scheme; the generated page is intentionally left in place so that
+ * admin edits and leaderboard data are never destroyed by an update/uninstall.
  */
+@Slf4j
 @Component
 public class Game2048Plugin extends BasePlugin {
 
     private final SchemeManager schemeManager;
+    private final Game2048PageInitializer pageInitializer;
 
-    public Game2048Plugin(PluginContext pluginContext, SchemeManager schemeManager) {
+    public Game2048Plugin(PluginContext pluginContext, SchemeManager schemeManager,
+        Game2048PageInitializer pageInitializer) {
         super(pluginContext);
         this.schemeManager = schemeManager;
+        this.pageInitializer = pageInitializer;
     }
 
     @Override
@@ -27,6 +38,20 @@ public class Game2048Plugin extends BasePlugin {
             IndexSpecs.<GameScore, Integer>single("spec.score", Integer.class)
                 .indexFunc(score -> score.getSpec() == null ? null : score.getSpec().getScore())
         ));
+
+        // Async + retry: during startup the extension store / core schemes may
+        // not be ready for a few seconds. A page-creation failure must never
+        // prevent the plugin (and its leaderboard API) from starting.
+        pageInitializer.ensurePage()
+            .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                .maxBackoff(Duration.ofSeconds(8)))
+            .onErrorResume(error -> {
+                log.warn("Could not ensure the /game2048 page; the game is still reachable at "
+                        + "/plugins/plugin-game-2048/assets/game/index.html. Cause: {}",
+                    error.toString());
+                return Mono.empty();
+            })
+            .subscribe();
     }
 
     @Override

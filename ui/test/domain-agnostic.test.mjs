@@ -26,6 +26,9 @@ const ENTRY_PLACEHOLDER = 'https://你的域名/game2048';
 const SHIPPED_FILES = [
   'README.md',
   'src/main/resources/plugin.yaml',
+  'src/main/resources/page/game2048.html',
+  'src/main/java/run/halo/game2048/Game2048PageInitializer.java',
+  'src/main/java/run/halo/game2048/Game2048Plugin.java',
   'src/main/resources/static/game/index.html',
   'src/main/resources/static/game/app.js',
   'src/main/resources/static/game/style.css',
