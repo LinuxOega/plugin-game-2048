@@ -4,7 +4,6 @@
 
 ## 访问约定（硬性要求）：`https://你的域名/game2048`
 
->
 > 「你的域名」指的是**安装本插件的那个 Halo 站点自己的域名**，不是某个固定值。插件里**没有任何域名配置、host 白名单、回调地址或绝对外链**：自定义页面、iframe、静态资源、排行榜 API 全部使用同源根相对路径，协议、域名、端口由浏览器当前地址自动决定。
 >
 > 因此同一份 JAR 可以直接装到任意数量的站点上——个人域名、二级域名、新顶级域、内网 IP + 端口、本地 `localhost:8090` 都适用，**无需改代码、无需填域名、无需按域名重新打包**。站点启用 HTTPS 后即自动是 `https://你的域名/game2048`；用 HTTP 访问时同样自动是 `http://你的域名/game2048`。
@@ -88,14 +87,15 @@
 
 ## 环境要求
 
-| 组件 | 版本 |
-| --- | --- |
-| Halo | **>= 2.27.0**（仅插件模式需要；纯前端部署不需要 Halo） |
-| JDK | 21 |
-| Gradle | 9.4.0（wrapper 已内置，也可用系统安装） |
-| Node / npm | 22+ / 10+ |
+| 组件         | 版本                                   |
+| ---------- | ------------------------------------ |
+| Halo       | **>= 2.27.0**（仅插件模式需要；纯前端部署不需要 Halo） |
+| JDK        | 21                                   |
+| Gradle     | 9.4.0（wrapper 已内置，也可用系统安装）           |
+| Node / npm | 22+ / 10+                            |
 
 <details>
+
 <summary>Windows 免安装部署示例（可选，仅作环境配置参考）</summary>
 
 从清华 TUNA Adoptium 镜像下载 JDK 21 的 Windows ZIP、从华为云镜像下载 Gradle 9.4.0，解压到用户目录（无需管理员权限），例如 `~/.workbuddy/tools/jdk/jdk-21.0.13+9` 与 `~/.workbuddy/tools/gradle/gradle-9.4.0`，再写入用户级 `JAVA_HOME` / `GRADLE_HOME` / `Path`。
@@ -173,12 +173,12 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 
 **域名无关性由下面四条共同保证，全工程没有一处写死站点域名：**
 
-| 环节 | 实际写法 | 为什么与域名无关 |
-| --- | --- | --- |
-| 访问入口 | 自定义页面 slug `game2048` → `/game2048` | Halo 按 slug 生成页面，域名由站点自身决定 |
+| 环节            | 实际写法                                                                        | 为什么与域名无关                   |
+| ------------- | --------------------------------------------------------------------------- | -------------------------- |
+| 访问入口          | 自定义页面 slug <u>`game2048` → `/game2048`</u>                                  | Halo 按 slug 生成页面，域名由站点自身决定 |
 | iframe / 静态资源 | `/plugins/plugin-game-2048/assets/game/index.html`、`./style.css`、`./app.js` | 根相对 / 相对路径，浏览器自动补当前 origin |
-| 排行榜 API | `/apis/api.game2048.halo.run/v1alpha1/scores` | 根相对自动同源；子路径部署时自动推导前缀 |
-| 主题同步 | `location.origin` 同源校验 + 同源 `localStorage` | 只判断「是否同源」，不比较、不存储任何具体域名 |
+| 排行榜 API       | `/apis/api.game2048.halo.run/v1alpha1/scores`                               | 根相对自动同源；子路径部署时自动推导前缀       |
+| 主题同步          | `location.origin` 同源校验 + 同源 `localStorage`                                  | 只判断「是否同源」，不比较、不存储任何具体域名    |
 
 `app.js` 里唯一与地址有关的是 `location.pathname`（用于识别插件自身路径与子路径前缀），**从不读取 `location.hostname`**。自动化测试会在多个不同域名、协议、端口下启动页面，断言发出的请求完全一致且不含主机名。
 
@@ -186,11 +186,11 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 
 ### 3. 游戏操作
 
-| 操作 | 方式 |
-| --- | --- |
-| 移动 | 方向键 / WASD / 触屏滑动 |
-| 撤销 | 「撤销一步」按钮（保留最近一步） |
-| 重开 | 「新游戏」按钮 |
+| 操作 | 方式                    |
+| -- | --------------------- |
+| 移动 | 方向键 / WASD / 触屏滑动     |
+| 撤销 | 「撤销一步」按钮（保留最近一步）      |
+| 重开 | 「新游戏」按钮               |
 | 上榜 | 游戏结束自动提交，或点「提交成绩」手动提交 |
 
 ---
@@ -199,12 +199,12 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 
 **结论：能，而且大多数情况下根本不需要 Halo 插件。** 前台游戏页是纯 HTML/CSS/JS，只有「全站排行榜」依赖 Halo 后端；游戏本身、键盘/触屏操作、撤销、最高分完全在浏览器里运行。
 
-| 你的博客 | 做法 | 排行榜 |
-| --- | --- | --- |
-| Halo >= 2.27 | 上传 JAR 并启用，iframe 指向插件静态页 | 全站榜（Halo API） |
-| Hexo / Hugo / VuePress / GitHub Pages | 上传 `standalone/2048.html` 或 `standalone/game/` | 浏览器本地榜 |
-| WordPress / Typecho / 任意 PHP 站 | 上传到站点目录，用「自定义 HTML」区块放 iframe | 浏览器本地榜 |
-| 纯本地预览 | 双击 `standalone/2048.html` | 浏览器本地榜 |
+| 你的博客                                  | 做法                                             | 排行榜           |
+| ------------------------------------- | ---------------------------------------------- | ------------- |
+| Halo >= 2.27                          | 上传 JAR 并启用，iframe 指向插件静态页                      | 全站榜（Halo API） |
+| Hexo / Hugo / VuePress / GitHub Pages | 上传 `standalone/2048.html` 或 `standalone/game/` | 浏览器本地榜        |
+| WordPress / Typecho / 任意 PHP 站        | 上传到站点目录，用「自定义 HTML」区块放 iframe                  | 浏览器本地榜        |
+| 纯本地预览                                 | 双击 `standalone/2048.html`                      | 浏览器本地榜        |
 
 ### 方案 A：博客就是 Halo
 
@@ -235,6 +235,7 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 - **GitHub Pages / 对象存储 / CDN**：直接托管 `2048.html`，iframe 的 `src` 换成绝对 URL。
 - **CSP 限制**：单文件内联了脚本与样式，若站点 CSP 禁止 `unsafe-inline`，改用四文件版（外部 `app.js` / `style.css`）并放行同源资源。
 
+
 ### 想要跨访客排行榜，但博客不是 Halo？
 
 在页面脚本之前设置自定义接口地址：
@@ -253,13 +254,13 @@ iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若�
 
 #### 第 1 步 · 安装或更新插件
 
-控制台 → 插件 → 上传插件（已装旧版则用**「更新插件」**）→ 选择 `build/libs/plugin-game-2048-1.0.7.jar` → 启用 / 等待重启。
+控制台 → 插件 → 上传插件（已装旧版则&#x7528;**「更新插件」**）→ 选择 `build/libs/plugin-game-2048-1.0.7.jar` → 启用 / 等待重启。
 
-| 形态 | 效果 |
-| --- | --- |
+| 形态                                  | 效果                                |
+| ----------------------------------- | --------------------------------- |
 | JAR 不含 `ui/ui-plugin.json` 与 ESM 产物 | Halo 不注册 Console 侧边栏的「2048 小游戏」页面 |
-| 不含 `extensions/menu-item.yaml` | 不向 `primary` 主菜单自动添加导航项 |
-| 静态资源 / 排行榜 API / 主题同步全部为同源相对路径 | 不含任何域名配置，装到任意站点都无需改文件、无需重新打包 |
+| 不含 `extensions/menu-item.yaml`      | 不向 `primary` 主菜单自动添加导航项           |
+| 静态资源 / 排行榜 API / 主题同步全部为同源相对路径      | 不含任何域名配置，装到任意站点都无需改文件、无需重新打包      |
 
 排行榜 API、`ReverseProxy` 静态资源、Ethereal 主题同步全部不变。1.0.7 相对 1.0.6 增加了域名无关契约测试与子路径前缀自动推导，常规根路径站点行为完全不变。
 
@@ -288,20 +289,41 @@ Halo 自定义页面固定按 `/{slug}` 访问，所以发布后 **`https://你�
 5. 浏览器 Network 面板里资源与 API 请求均指向**当前站点域名**，没有写死的第三方域名
 6. `.../assets/game/app.js` 含 `GAME2048_CONFIG` 与 `setupThemeSync`，说明新 JAR 已生效
 
+#### 如果 `https://你的域名/game2048` 返回 404
+
+**这通常与插件 JAR 无关。** 看响应体即可判断：若返回 Halo 的 `application/problem+json`、内容是 `No static resource game2048.`，说明请求已经到了 Halo，只是站点里**没有可公开访问的 `game2048` 页面路由**。插件的静态资源与 API 分别固定在 `/plugins/...` 和 `/apis/...` 下，不能占用站点根路径，所以 `/game2048` 只能由后台的「页面」功能提供。
+
+按顺序自查：
+
+1. **只更新了插件？** 更新 JAR 不会自动创建页面，必须手动新建 slug 为 `game2048` 的页面。
+2. **建的是「页面」吗？** 必须是「页面」（SinglePage），不是文章，也不是「外观 → 菜单」里的自定义链接——菜单链接只会让 sitemap 多一条 URL，不会产生页面对象。
+3. **发布了吗？** 点「**发布**」而不是「保存草稿」，可见性设为「公开」。草稿 / 私有页面前台一律 404。
+4. **别名对吗？** slug 恰好是 `game2048`，不要带 `/`、域名、空格或 `.html` 后缀。
+
+只读自检（把域名换成站点实际域名，接口返回站点**已公开**的页面列表）：
+
+```bash
+curl -s "https://你的域名/apis/api.content.halo.run/v1alpha1/singlepages?size=50"
+```
+
+发布成功后 `items` 里应出现 `slug: "game2048"`、`publish: true`、`visible: "PUBLIC"`、`phase: "PUBLISHED"`；没有就说明页面尚未公开。同时可以确认插件本身正常：`/plugins/plugin-game-2048/assets/game/index.html` 与 `/apis/api.game2048.halo.run/v1alpha1/scores` 都应返回 200。
+
+> 若 sitemap 里已经有 `/game2048` 但前台仍 404，多半是上面第 2、3 条：sitemap 会收录菜单链接，不等于页面已发布。Halo 的 404 响应带 `Cache-Control: no-store`，一般不是浏览器 / CDN 缓存问题。
+
 #### 示例站点兼容性记录（不绑定域名，仅作验证）
 
 下表是一次线上只读探测的结论，用来说明机制可行；**这些结论不构成对域名的要求**，换成任意域名，上面两步完全一致（2026-11-14，某 Halo 2.27.2 + Ethereal 2.1.0 站点）：
 
-| 项目 | 结果 |
-| --- | --- |
-| 建站程序 | Halo **2.27.2**（`meta generator`），主题 Ethereal，满足 `requires >=2.27.0` |
-| 自定义页面路由 | Halo 文档明确访问链接为 `/{slug}`；站点上 `/about`、`/links` 均 200，`/game2048` 探测时 404（页面尚未创建） |
-| 协议 | HTTP 302 → HTTPS；HEAD 请求被 WAF 处理返回 404，GET 正常 200 |
-| 后台入口 | `/console`（未登录跳 `/login?authentication_required`） |
-| 插件静态资源 | `/plugins/{name}/assets/...` 返回 200，ReverseProxy 机制可用 |
-| 响应头 | **`X-Frame-Options: SAMEORIGIN`**（iframe 必须同源）、无 CSP、有 WAF、下发 `XSRF-TOKEN` |
-| 线上插件状态 | 静态页四个资源 200；`GET /apis/api.game2048.halo.run/v1alpha1/scores` 返回真实成绩，匿名读写均已打通、WAF 未拦截 |
-| 已有游戏入口 | 探测时导航中无 2048 入口，`/2048`、`/game` 等路径均 404 |
+| 项目      | 结果                                                                                    |
+| ------- | ------------------------------------------------------------------------------------- |
+| 建站程序    | Halo **2.27.2**（`meta generator`），主题 Ethereal，满足 `requires >=2.27.0`                  |
+| 自定义页面路由 | Halo 文档明确访问链接为 `/{slug}`；站点上 `/about`、`/links` 均 200，`/game2048` 探测时 404（页面尚未创建）      |
+| 协议      | HTTP 302 → HTTPS；HEAD 请求被 WAF 处理返回 404，GET 正常 200                                     |
+| 后台入口    | `/console`（未登录跳 `/login?authentication_required`）                                     |
+| 插件静态资源  | `/plugins/{name}/assets/...` 返回 200，ReverseProxy 机制可用                                 |
+| 响应头     | **`X-Frame-Options: SAMEORIGIN`**（iframe 必须同源）、无 CSP、有 WAF、下发 `XSRF-TOKEN`            |
+| 线上插件状态  | 静态页四个资源 200；`GET /apis/api.game2048.halo.run/v1alpha1/scores` 返回真实成绩，匿名读写均已打通、WAF 未拦截 |
+| 已有游戏入口  | 探测时导航中无 2048 入口，`/2048`、`/game` 等路径均 404                                              |
 
 ---
 
@@ -311,13 +333,13 @@ Halo 自定义页面固定按 `/{slug}` 访问，所以发布后 **`https://你�
 
 ### 实测到的主题契约
 
-| 项目 | 实测值 |
-| --- | --- |
-| 明暗标记 | `<html data-color-scheme="auto" class="... color-scheme-auto">`；切换时加 `.dark`、改 `color-scheme-*` |
-| 主题状态 | `localStorage.theme`（`light` / `dark` / `auto`）、`__user_chose_theme`、`hue`（站点当前 `themeColor.hue = 250`，`data-hue-fixed="false"` 表示访客可调） |
+| 项目   | 实测值                                                                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 明暗标记 | `<html data-color-scheme="auto" class="... color-scheme-auto">`；切换时加 `.dark`、改 `color-scheme-*`                                                  |
+| 主题状态 | `localStorage.theme`（`light` / `dark` / `auto`）、`__user_chose_theme`、`hue`（站点当前 `themeColor.hue = 250`，`data-hue-fixed="false"` 表示访客可调）          |
 | 亮色变量 | `--primary: oklch(.7 .14 var(--hue))`、`--card-bg: white`、`--deep-text: oklch(.25 .02 var(--hue))`、`--btn-regular-bg: oklch(.95 .025 var(--hue))` |
-| 暗色变量 | `:root.dark` → `--primary: oklch(.75 .14 var(--hue))`、`--card-bg: oklch(.23 .015 var(--hue))`、`--deep-text: oklch(.85 .02 var(--hue))` |
-| 卡片风格 | `--radius-large: 1rem`；站点启用了 `card-border-enabled`、`card-follow-theme-enabled` |
+| 暗色变量 | `:root.dark` → `--primary: oklch(.75 .14 var(--hue))`、`--card-bg: oklch(.23 .015 var(--hue))`、`--deep-text: oklch(.85 .02 var(--hue))`           |
+| 卡片风格 | `--radius-large: 1rem`；站点启用了 `card-border-enabled`、`card-follow-theme-enabled`                                                                   |
 
 Halo 官方「与插件集成」文档要求主题在 `<html>`/`<body>` 上打 `color-scheme-*` / `data-color-scheme` 公共标记，插件组件据此继承明暗；Ethereal 2.0.1 起也补齐了「插件配色支持」与页脚注入扩展点。
 
@@ -331,12 +353,12 @@ Halo 官方「与插件集成」文档要求主题在 `<html>`/`<body>` 上打 `
 
 在页面脚本之前设置（一般无需设置，自动识别即可）：
 
-| 键 | 值 | 说明 |
-| --- | --- | --- |
-| `theme` | 不设 / `'auto'` | 自动识别同源 Ethereal（**仅 Halo 部署**） |
-| | `'ethereal'` | 强制启用主题皮肤 |
-| | `'off'` | 关闭，回到 2048 经典配色 |
-| `defaultHue` | 数字，默认 `250` | 读不到 `localStorage.hue` 时的色相 |
+| 键            | 值             | 说明                             |
+| ------------ | ------------- | ------------------------------ |
+| `theme`      | 不设 / `'auto'` | 自动识别同源 Ethereal（**仅 Halo 部署**） |
+|              | `'ethereal'`  | 强制启用主题皮肤                       |
+|              | `'off'`       | 关闭，回到 2048 经典配色                |
+| `defaultHue` | 数字，默认 `250`   | 读不到 `localStorage.hue` 时的色相    |
 
 ```html
 <script>window.GAME2048_CONFIG = { theme: 'ethereal', defaultHue: 250 };</script>
@@ -358,10 +380,10 @@ Ethereal 2.x 会把主题写进 localStorage，上面的机制已足够。若换
 
 公开 `CustomEndpoint`（匿名可访问，由 `role-template.yaml` 聚合到 anonymous 角色）：
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/apis/api.game2048.halo.run/v1alpha1/scores?size=10` | 排行榜，按 `spec.score` 降序，size 范围 1–50 |
-| POST | `/apis/api.game2048.halo.run/v1alpha1/scores` | 提交成绩 |
+| 方法   | 路径                                                    | 说明                                 |
+| ---- | ----------------------------------------------------- | ---------------------------------- |
+| GET  | `/apis/api.game2048.halo.run/v1alpha1/scores?size=10` | 排行榜，按 `spec.score` 降序，size 范围 1–50 |
+| POST | `/apis/api.game2048.halo.run/v1alpha1/scores`         | 提交成绩                               |
 
 POST 请求体：
 
@@ -399,7 +421,7 @@ GET|PUT|DELETE /apis/game2048.halo.run/v1alpha1/gamescores/{name}
 - ✅ 6 个 Java 文件语法解析、3 个 YAML 解析、`theme-bridge.js` 语法检查、API 路径一致性检查通过
 - ✅ **线上只读实测（示例站点，不绑定域名）**：插件静态页四个资源 200；排行榜 API 返回真实成绩，匿名读写均通；`/about`、`/links` 200 验证 `/{slug}` 路由，`/game2048` 404 说明页面尚未创建；Ethereal 2.1.0 的 `data-color-scheme` / `--hue` / `oklch` 变量均从渲染页面与主题 CSS 确认
 
-**仍未验证**：本机无 Docker、无本地 Halo 实例，因此**「更新插件」后 Console 菜单消失、旧导航项被清理、以及 `/game2048` 在真实浏览器中的表现**，需在目标站点按上面两步操作后确认。域名无关性本身已由自动化测试覆盖：多个不同域名 / 协议 / 端口下，页面发出的请求完全一致且不含任何主机名。**纯前端静态包不依赖 Halo，可直接部署。**
+**仍未验证**：本机无 Docker、无本地 Halo 实例，因&#x6B64;**「更新插件」后 Console 菜单消失、旧导航项被清理、以及 `/game2048` 在真实浏览器中的表现**，需在目标站点按上面两步操作后确认。域名无关性本身已由自动化测试覆盖：多个不同域名 / 协议 / 端口下，页面发出的请求完全一致且不含任何主机名。**纯前端静态包不依赖 Halo，可直接部署。**
 
 > 构建日志中有一条 `Deprecated Gradle features ... incompatible with Gradle 10` 提示，来自第三方 Gradle 插件，不影响 Gradle 9.4.0 构建；将来升级 Gradle 10 时需同步升级这些插件。
 
