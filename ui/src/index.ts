@@ -1,3 +1,6 @@
+// Kept as a reference implementation, but intentionally NOT packaged into the
+// plugin JAR (see build.gradle). The plugin runs in frontend-only mode: the game
+// is served at /game2048 by a Halo custom page, with no Console menu entry.
 import { IconPlug } from "@halo-dev/components";
 import { definePlugin } from "@halo-dev/ui-shared";
 import { markRaw } from "vue";

@@ -10,7 +10,7 @@ spec:
     website: https://www.halo.run
   logo: logo.svg
   displayName: "2048 小游戏"
-  description: "为 Halo 站点提供 2048 小游戏：Console 菜单页面、前台可嵌入游戏页与全站排行榜。"
+  description: "为 Halo 站点提供 2048 小游戏：仅前台独立游戏页与全站排行榜，不注册 Console 菜单与导航项。"
   license:
     - name: "MIT"
       url: "https://opensource.org/licenses/MIT"

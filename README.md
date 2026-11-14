@@ -1,13 +1,15 @@
 # Halo 插件：2048 小游戏（plugin-game-2048）
 
-一个完整可运行的 Halo 2.x 插件，为站点加入 2048 数字滑块游戏：
+一个完整可运行的 Halo 2.x 插件，为站点加入 2048 数字滑块游戏。
 
-- **Console 后台**：左侧「工具」分组下新增「2048 小游戏」页面（Vue 3 + TypeScript）
-- **前台页面**：通过 `ReverseProxy` 暴露独立游戏页，自动注册 `primary` 主菜单入口，也可 iframe 嵌入文章/自定义页面
+> **当前形态：仅前台模式（frontend-only）**。插件**不在 Console 侧边栏注册菜单页**，也**不向前台导航自动添加菜单项**；游戏只通过自定义页面 `https://mlingxi.cn/game2048` 访问。Console 的「插件」列表里仍会列出本插件（Halo 机制，无法隐藏），但点进去只有插件详情，没有游戏页面。恢复方法见「恢复 Console 页面」。
+
+- **前台唯一入口**：Halo 自定义页面 `/{slug}`（slug = `game2048`），内容用同源 iframe 承载游戏页
+- **静态游戏页**：`ReverseProxy` 暴露 `/plugins/plugin-game-2048/assets/game/index.html`，纯 HTML/CSS/JS，被上述页面引用
 - **Ethereal 主题适配**：自动跟随站点明暗模式与 `--hue` 主题色，提供主题同款卡片容器，无需修改主题文件或注入脚本
 - **全站排行榜**：Halo 自定义模型 `GameScore` 持久化，公开 `CustomEndpoint` 读写，匿名角色模板授权
 - **任意博客也能用**：前台页是纯 HTML/CSS/JS，`standalone/` 提供免后端的单文件版与四文件版
-- **一份规则，三处复用**：`ui/src/core/game2048.js` 是唯一算法源码，Console 直接 import，前台页面由构建脚本生成 IIFE 版本，Node 测试直接 import
+- **一份规则，三处复用**：`ui/src/core/game2048.js` 是唯一算法源码；Console 页面源码保留但不打包进 JAR，前台页面由构建脚本生成 IIFE 版本，Node 测试直接 import
 
 ---
 
@@ -15,9 +17,9 @@
 
 ```
 .
-├── build.gradle                     # 根 Gradle：Java 21 + Halo 平台 BOM + UI 产物打包
+├── build.gradle                     # 根 Gradle：Java 21 + Halo 平台 BOM + 排除 Console UI 产物
 ├── settings.gradle                  # 多项目（root + ui）
-├── gradle.properties                # version=1.0.0（构建时写入 plugin.yaml 的 spec.version）
+├── gradle.properties                # version=1.0.6（构建时写入 plugin.yaml 的 spec.version）
 ├── gradlew / gradlew.bat            # Gradle Wrapper 脚本
 ├── gradle/wrapper/
 │   ├── gradle-wrapper.jar           # Wrapper 二进制（随仓库提供）
@@ -47,7 +49,6 @@
 │       ├── plugin.yaml              # 插件清单（requires >=2.27.0）
 │       ├── logo.svg
 │       ├── extensions/
-│       │   ├── menu-item.yaml       # 预置前台导航菜单项（primary 主菜单）
 │       │   ├── reverse-proxy.yaml   # 静态资源代理 /game/**
 │       │   └── role-template.yaml   # 匿名只读+提交权限 / 可选管理角色
 │       └── static/game/
@@ -55,20 +56,20 @@
 │           ├── style.css
 │           ├── app.js               # 前台控制器（模式可配置，默认本地榜）
 │           └── game-core.js         # 由 scripts/build-standalone.mjs 生成
-└── ui/
+└── ui/                              # 算法源码 + Node 测试；产物默认不进 JAR
     ├── package.json / vite.config.ts / build.gradle
     ├── src/
-    │   ├── index.ts                 # definePlugin 注册菜单路由
+    │   ├── index.ts                 # definePlugin 菜单路由（源码保留，不打包）
     │   ├── api/scores.ts            # 排行榜 API 封装
     │   ├── core/game2048.js         # ★ 唯一算法源码
     │   ├── core/game2048.d.ts       # 算法类型声明
-    │   └── views/GameView.vue       # Console 游戏页面
+    │   └── views/GameView.vue       # Console 游戏页面（当前形态未启用）
     └── test/
         ├── game2048.test.mjs        # 核心算法单测（19 例）
         ├── standalone.test.mjs     # 前台本地模式冒烟（6 项）
         ├── halo-mode.test.mjs      # Halo 在线模式 API 冒烟（4 项）
         ├── blog-pack.test.mjs      # 静态包 / 单文件版部署冒烟（4 项）
-        ├── nav-entry.test.mjs      # 导航菜单契约 / 返回链接 / 部署片段（4 项）
+        ├── nav-entry.test.mjs      # 仅前台构建契约 / 返回链接 / 部署片段（5 项）
         └── ethereal-theme.test.mjs # Ethereal 明暗/色相同步与主题片段（7 项）
 ```
 
@@ -103,12 +104,16 @@ node scripts/build-standalone.mjs
 # 1b) 生成可部署到任意博客的静态包（standalone/）
 node scripts/build-blog-pack.mjs
 
-# 2) 一条命令完成：UI 依赖安装 + Vite 构建 + 44 项测试 + Java 编译 + JAR 打包
+# 2) 一条命令完成：UI 依赖安装 + Vite 构建 + 45 项测试 + Java 编译 + JAR 打包
 ./gradlew build          # Windows: .\gradlew.bat build
-# 产物：build/libs/plugin-game-2048-1.0.0.jar
+# 产物：build/libs/plugin-game-2048-1.0.6.jar
 ```
 
-Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmInstall` / `vite build` / `npm test`，并把 `ui/build/dist` 复制进 JAR 的 `ui/` 目录（Halo 2.11+ 优先读这里）。也可以单独跑 `cd ui && npm install && npm test && npm run build`。
+`./gradlew build` 仍会跑 `ui:npmInstall` / `vite build` / `npm test`（45 项），但 **Vite 产物不再复制进 JAR**：`build.gradle` 的 `jar` 显式 `exclude 'ui/**'` 与 `exclude 'ui-plugin.json'`，并在 `processResources` 之后清理旧残留。Halo 靠 `resources/ui/ui-plugin.json` 识别 Console 插件入口，JAR 里没有这个文件就不会注册侧边栏菜单。`ui/` 因此只承担「算法唯一源码 + Node 测试」的职责。也可以单独跑 `cd ui && npm install && npm test && npm run build`。
+
+### 恢复 Console 页面
+
+若以后想让「2048 小游戏」重新出现在 Console 左侧「工具」分组：在 `build.gradle` 加回一个 `Copy` 任务，把 `ui/build/dist` 复制到 `build/resources/main/ui`，并删掉 `jar` 里的两条 `exclude`（源码 `ui/src/index.ts` 与 `GameView.vue` 一直保留）。重新构建上传即可。
 
 > **Wrapper 分发源**：`gradle/wrapper/gradle-wrapper.properties` 指向华为云镜像（`repo.huaweicloud.com`），带 `distributionSha256Sum` 完整性校验，并设置 `validateDistributionUrl=false`——官方源会重定向到 GitHub，国内网络不可达。  
 > 如需切回官方源：把 `distributionUrl` 改为 `https\://services.gradle.org/distributions/gradle-9.4.0-bin.zip`，并把 `validateDistributionUrl` 改回 `true`。
@@ -121,19 +126,17 @@ Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmI
 
 ## 使用方式
 
-### 1. Console 后台
+### 1. 唯一入口：`/game2048`
 
-插件启用后，左侧「工具」分组出现 **2048 小游戏**。方向键 / WASD 移动，支持撤销一步、昵称、提交成绩和全站排行榜。
+插件**不注册 Console 菜单页**，也**不注册前台导航菜单项**。游戏由 Halo 自定义页面暴露：
 
-### 2. 前台独立页面
+> 后台 → 页面 → 新建 → 标题填「2048 小游戏」→ 页面设置把**别名 / slug** 设为 `game2048` → 内容切到 **HTML / 源码模式**，整段粘贴 `deploy/ethereal/page.html` → 发布。
 
-```
-/plugins/plugin-game-2048/assets/game/index.html
-```
+Halo 自定义页面的访问链接固定为 `/{slug}`（官方文档；线上 `/about`、`/links` 均为 200），因此发布后打开 `https://mlingxi.cn/game2048` 即可直接玩。片段是**同源相对路径 + 零脚本**，兼容 `X-Frame-Options: SAMEORIGIN`，卡片与游戏页自动跟随 Ethereal 明暗与色相。
 
-插件启用后，`extensions/menu-item.yaml` 会向 `primary` 主菜单注册「2048 小游戏」，访客点击即全屏打开游戏页；全屏页顶部有「← 返回博客首页」（iframe 内自动隐藏）。若站点改过主菜单名，可在后台「外观 → 菜单」手工加一条自定义链接。
+> **为什么不是插件直接注册 `/game2048`**：Halo 把插件静态资源前缀固定为 `/plugins/{name}/assets/**`，`CustomEndpoint` 又固定挂在 `/apis/` 下，插件无法占用站点根路径（线上实测 `/game2048` 返回 404）。用自定义页面是官方支持的做法，插件也不会往你的内容库写任何对象。
 
-嵌入文章或自定义页面，可直接复制 `deploy/embed-snippet.html`；想要带标题与说明的完整页面内容则用 `deploy/page-2048.html`：
+最短片段（`deploy/` 里的版本额外做了高度自适应、圆角、键盘焦点提示与全屏链接）：
 
 ```html
 <iframe
@@ -143,9 +146,17 @@ Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmI
   style="display:block;width:100%;max-width:920px;height:clamp(720px,92vh,900px);border:0"></iframe>
 ```
 
-两个片段都是同源相对路径、零脚本，兼容 `X-Frame-Options: SAMEORIGIN`。iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若过滤 iframe，可直接写进主题模板。
+iframe 内需先点一下游戏区域，方向键才会被捕获；编辑器若过滤 iframe，可直接写进主题模板。
 
-> 该页面**也可以直接用浏览器打开本地文件预览**：不在 Halo 环境下时会自动降级为 `localStorage` 本地排行榜，游戏本身完全可玩。
+### 2. 静态资源路径
+
+```
+/plugins/plugin-game-2048/assets/game/index.html
+```
+
+这是 `ReverseProxy` 暴露的真实游戏页，上面的自定义页面通过 iframe 引用它。它仍可直接打开（Halo 插件机制决定，无法禁止），但**没有任何菜单或链接指向它**；直接打开时全站排行榜与主题同步同样生效，页顶部会出现「← 返回博客首页」。若需严格禁止直接访问，只能在反向代理层拦截该路径。
+
+> 本地用浏览器直接打开 `standalone/2048.html` 时会自动降级为 `localStorage` 本地排行榜，游戏本身完全可玩。
 
 ### 3. 游戏操作
 
@@ -171,7 +182,7 @@ Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmI
 
 ### 方案 A：博客就是 Halo
 
-无需改动前端代码：上传 `build/libs/plugin-game-2048-1.0.0.jar` → 启用 → 按上文用 iframe 嵌入。Console 菜单、全站排行榜、匿名提交权限随插件一起生效。
+上传 JAR → 启用 → 按上文新建 slug 为 `game2048` 的自定义页面并粘贴 `deploy/ethereal/page.html`。全站排行榜、匿名提交权限随插件一起生效；**Console 不出现游戏菜单，前台导航也不会自动多出入口**。
 
 ### 方案 B：任意静态博客（推荐单文件版）
 
@@ -217,7 +228,7 @@ Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmI
 | 项目 | 结果 |
 | --- | --- |
 | 建站程序 | Halo **2.27.2**（`meta generator`），主题 Ethereal，满足 `requires >=2.27.0` |
-| 主菜单标识 | 主题渲染数据中出现 `"menu":"primary"`，即默认主菜单名为 `primary` |
+| 自定义页面路由 | Halo 文档明确访问链接为 `/{slug}`；线上 `/about`、`/links` 均 200，`/game2048` 探测时 404（尚未创建） |
 | 协议 | HTTP 302 → HTTPS，全站使用 `https://mlingxi.cn`；HEAD 请求被 WAF 处理返回 404，GET 正常 200 |
 | 后台入口 | `https://mlingxi.cn/console`（未登录跳 `/login?authentication_required`） |
 | 插件静态资源 | 已有插件 `/plugins/PluginCodeEnhance/assets/...` 返回 200，ReverseProxy 机制可用 |
@@ -225,60 +236,44 @@ Gradle 的 `classes` 依赖 `ui:assemble`，因此第 2 步会自动执行 `npmI
 | 线上插件状态 | `index.html` / `style.css` / `app.js` / `game-core.js` 均 200；`GET /apis/api.game2048.halo.run/v1alpha1/scores` 返回真实成绩，说明匿名读取与成绩写入均已打通、WAF 未拦截 |
 | 已有游戏入口 | 探测时导航中无 2048 入口，`/2048`、`/game` 等路径均 404 |
 
-**结论：插件已经在跑，缺的只是「前台入口」。** 下面三种方式任选其一，都需要你在后台点最后一下（上传或保存），我无法代登录。
+**目标形态**：Console 无游戏菜单、前台导航无游戏入口，唯一访问地址 `https://mlingxi.cn/game2048`。下面两步都需要你在后台点最后一下（上传或保存），我无法代登录。
 
-#### 方式 1（推荐 · 零手工）：让插件自动把游戏挂进导航栏
+#### 第 1 步 · 更新插件（去掉两个入口）
 
-新版 JAR 内置 `extensions/menu-item.yaml`，插件启动时向 `primary` 主菜单注册一个 `MenuItem`：
+控制台 → 插件 → 找到 2048 插件 → **「更新插件」**上传 `build/libs/plugin-game-2048-1.0.6.jar` → 等待重启。新 JAR 与旧版的差别：
 
-| 字段 | 值 |
+| 去掉的东西 | 效果 |
 | --- | --- |
-| `spec.displayName` | `2048 小游戏` |
-| `spec.href` | `/plugins/plugin-game-2048/assets/game/index.html`（同源相对路径） |
-| `spec.menuName` | `primary` |
-| `status.*` | 显式写入，主题读 `status.displayName/status.href` 也能渲染 |
+| JAR 内 `ui/ui-plugin.json` 与 ESM 产物 | Halo 不再注册 Console 侧边栏的「2048 小游戏」页面 |
+| `extensions/menu-item.yaml` | 不再向 `primary` 主菜单自动添加导航项 |
 
-操作：控制台 → 插件 → 找到 2048 插件 → **「更新插件」**上传 `build/libs/plugin-game-2048-1.0.0.jar` → 等待重启 → 刷新前台（必要时清 `/plugins/plugin-game-2048/**` 的 CDN 缓存）。导航栏出现「2048 小游戏」，点击全屏打开游戏，页面顶部有「← 返回博客首页」。
+排行榜 API、`ReverseProxy` 静态资源、Ethereal 主题同步全部不变。
 
-> ⚠️ 用「更新插件」覆盖上传，**不要卸载再安装**：Halo 会清理预置资源，且可能连带清掉 `GameScore` 里的成绩数据。若你的主菜单被改过、不再叫 `primary`，自动项不会显示，改用方式 2。
+> ⚠️ 用「更新插件」覆盖，**不要卸载再安装**：Halo 清理插件时可能连带清掉 `GameScore` 里的成绩数据。若之前版本已在导航栏生成过「2048 小游戏」，更新后去「外观 → 菜单」检查，有残留就手工删除。必要时清 `/plugins/plugin-game-2048/**` 的 CDN 缓存。
 
-#### 方式 2（不升级插件 · 30 秒）：后台手工加菜单项
+#### 第 2 步 · 建 slug 为 `game2048` 的自定义页面
 
-控制台 → 外观 → 菜单 → 选中主菜单 → 新建：
+后台 → 页面 → 新建 → 标题 `2048 小游戏` → 页面设置里把**别名 / slug** 填 `game2048` → 内容区切到 **HTML / 源码模式**，整段粘贴 `deploy/ethereal/page.html` → 发布。
 
-- 类型：`自定义链接`
-- 名称：`2048 小游戏`
-- 链接地址：`/plugins/plugin-game-2048/assets/game/index.html`
-- 打开方式：`当前窗口`
-
-保存后前台导航立即出现入口，旧版插件也能用。这种方式不依赖新 JAR，但也不会有「返回博客首页」链接（浏览器后退即可）。
-
-#### 方式 3：把游戏嵌进文章或自定义页面
-
-新建「页面」（别名建议 `2048`），切到 HTML / 源码模式，整段粘贴 `deploy/page-2048.html`；或只在文章 HTML 块里粘贴 `deploy/embed-snippet.html`。两者都是**同源相对路径 + 零脚本**，兼容 `SAMEORIGIN`，也不怕编辑器过滤 `<script>`。
-
-最短片段：
+Halo 自定义页面固定按 `/{slug}` 访问，所以发布后 `https://mlingxi.cn/game2048` 就是游戏入口。片段核心：
 
 ```html
-<iframe
-  src="/plugins/plugin-game-2048/assets/game/index.html"
-  title="2048 小游戏"
-  loading="lazy"
-  style="display:block;width:100%;max-width:920px;height:clamp(720px,92vh,900px);border:0"></iframe>
+<iframe src="/plugins/plugin-game-2048/assets/game/index.html"
+  title="2048 小游戏" loading="lazy"
+  style="display:block;width:100%;height:clamp(720px,92vh,900px);border:0"></iframe>
 ```
 
-`deploy/` 里的版本额外做了：高度随视口自适应、圆角与背景色、键盘焦点提示（iframe 内需先点一下游戏区域才能接收方向键）、以及「全屏打开」链接。若编辑器连 `iframe` 也过滤，就写进主题模板。
-
-> iframe 的 `src` 必须是同源相对路径，不能写其他域名或 CDN，否则会被 `X-Frame-Options: SAMEORIGIN` 拒绝。
+`src` 必须同源相对路径，不能写其他域名或 CDN，否则会被 `X-Frame-Options: SAMEORIGIN` 拒绝。片段零脚本，不怕编辑器过滤 `<script>`；若编辑器连 `iframe` 也过滤，就写进主题模板。
 
 #### 部署后核对清单
 
-1. 前台导航出现「2048 小游戏」（方式 1 / 2），或页面显示 4×4 棋盘（方式 3）
-2. 方向键 / WASD 能移动，触屏可滑动；提交成绩后刷新排行榜能看到新记录
-3. `https://mlingxi.cn/console` 的「工具」分组下有「2048 小游戏」
-4. 若升级过 JAR：`.../assets/game/app.js` 含 `GAME2048_CONFIG`，全屏页顶部有返回链接
+1. `https://mlingxi.cn/game2048` 返回 200 并显示 4×4 棋盘
+2. Console 左侧菜单**没有**「2048 小游戏」页面（「插件」列表里仍能看到本插件，属正常）
+3. 前台导航栏**没有**自动生成的游戏入口
+4. 方向键 / WASD 能移动，触屏可滑动；提交成绩后刷新排行榜能看到新记录
+5. `.../assets/game/app.js` 含 `GAME2048_CONFIG` 与 `setupThemeSync`，说明新 JAR 已生效
 
-> 探测时线上 `app.js` 仍是 09:26 首版（`/plugins/` 子串判定 + 旧页脚），功能在本站路径下正常。新 JAR 除了加固模式判定，还新增了自动导航菜单项、返回链接与 Ethereal 主题适配，因此这次值得用「更新插件」覆盖上传。
+> 线上 `app.js` 探测时仍是首版（`/plugins/` 子串判定 + 旧页脚），功能在本站路径下正常；本次更新除了切换仅前台模式，还会带上加固后的模式判定、返回链接与 Ethereal 主题适配。
 
 ---
 
@@ -302,7 +297,7 @@ Halo 官方「与插件集成」文档要求主题在 `<html>`/`<body>` 上打 `
 
 1. **明暗与主题色自动跟随**：游戏页是 ReverseProxy 暴露的独立 HTML 文档，拿不到父页 CSS 变量；但它与站点**同源**，因此 `app.js` 直接读上述 `localStorage`，设置同样的 `.dark` / `data-color-scheme` / `color-scheme-*` 标记，并监听 `storage` 事件与 `prefers-color-scheme` 变化。`style.css` 复用同一套 `oklch(...)` 变量，主题色相与明暗切换实时生效——**访客切主题时游戏不刷新、进度不丢**。
 2. **主题同款容器**：`deploy/ethereal/embed.html`、`page.html` 用 `--card-bg` / `--primary` / `--radius-large` 构建卡片，游戏页内部自动对齐。棋盘保留 2048 经典配色保证数字可读性，只把外围（背景、卡片、按钮、文字、边框）主题化。
-3. **导航入口**：`menu-item.yaml` 走 Halo 标准 `MenuItem`，Ethereal 的导航栏与移动抽屉都从 menuFinder 取 `primary` 菜单，因此「2048 小游戏」会自动出现；若改过菜单组名或主题写死菜单，用前面「方式 2」手工加。
+3. **页面容器与入口**：`deploy/ethereal/page.html` 用主题变量做卡片，粘贴到 slug 为 `game2048` 的自定义页面后由 `/game2048` 直达。当前形态**不再注册导航菜单项**（`menu-item.yaml` 已移除），避免出现第二个入口；主题变量同步本身不依赖菜单。
 
 ### 配置
 
@@ -369,16 +364,14 @@ GET|PUT|DELETE /apis/game2048.halo.run/v1alpha1/gamescores/{name}
 
 已在本机实际执行并通过（2026-11-14，JDK 21.0.13+9 / Gradle 9.4.0 / Node 22）：
 
-- ✅ **`./gradlew build`：BUILD SUCCESSFUL** — `compileJava` 真实编译通过，`jar` 产出 `build/libs/plugin-game-2048-1.0.0.jar`（36 KB）；加入 Ethereal 主题适配后再次增量重建成功（25 秒）
-- ✅ **JAR 内容核验**：32 个条目，含 7 个 `.class`、`plugin.yaml`（version 1.0.0 / requires >=2.27.0）、3 个 extensions YAML、`static/game/` 4 个前台文件、`ui/` ESM 产物与 `ui-plugin.json`、`META-INF/plugin-components.idx`；已解包核验 `menu-item.yaml` 字段、`app.js` 的 `setupThemeSync` / `game2048:theme` 与 `style.css` 的 `:root.theme-ethereal` + `oklch` 变量
-- ✅ **`npm test` / `ui:npmCheck`：44 项全部通过**（36 个顶层用例）— 核心算法 19 + 前台本地模式 6 + Halo 在线模式 4 + 静态部署包 4 + 导航接入 4 + **Ethereal 适配 7**（自动识别暗色与色相、storage 事件免刷新切换、`theme:off`、强制启用、静态博客隔离、同域 postMessage 与跨域拒绝、主题片段契约）
+- ✅ **`./gradlew build`：BUILD SUCCESSFUL**（23 秒）— `compileJava` 真实编译通过，`jar` 产出 `build/libs/plugin-game-2048-1.0.6.jar`（29 KB / 24 条目）；切换仅前台模式后重新构建成功
+- ✅ **JAR 内容核验**：24 个条目，含 7 个 `.class`、`plugin.yaml`（version 1.0.6 / requires >=2.27.0）、**2 个 extensions YAML**（`reverse-proxy.yaml`、`role-template.yaml`）、`static/game/` 4 个前台文件、`META-INF/plugin-components.idx`；已确认 **无 `ui/`、无 `ui-plugin.json`、无 `menu-item.yaml`**，即不会注册 Console 菜单或前台导航项
+- ✅ **`npm test` / `ui:npmCheck`：45 项全部通过**（37 个顶层用例）— 核心算法 19 + 前台本地模式 6 + Halo 在线模式 4 + 静态部署包 4 + 仅前台构建契约与部署片段 5 + Ethereal 适配 7
 - ✅ `./gradlew --version` 自举下载 Gradle 9.4.0 并通过 sha256 校验；`java -version` / `javac -version` 均为 21.0.13
-- ✅ 6 个 Java 文件语法解析、4 个 YAML 解析、`theme-bridge.js` 语法检查、API 路径四端一致性检查全部通过
-- ✅ **线上只读实测（mlingxi.cn）**：插件静态页四个资源 200；排行榜 API 返回真实成绩，证明匿名读取与写入均通；主菜单标识 `primary`、Ethereal 2.1.0 的 `data-color-scheme` / `--hue` / `oklch` 变量均从渲染页面与主题 CSS 中确认
+- ✅ 6 个 Java 文件语法解析、3 个 YAML 解析、`theme-bridge.js` 语法检查、API 路径一致性检查通过
+- ✅ **线上只读实测（mlingxi.cn）**：插件静态页四个资源 200；排行榜 API 返回真实成绩，匿名读写均通；`/about`、`/links` 200 验证 `/{slug}` 路由，`/game2048` 404 说明页面尚未创建；Ethereal 2.1.0 的 `data-color-scheme` / `--hue` / `oklch` 变量均从渲染页面与主题 CSS 确认
 
-**仍未验证**：本机无 Docker、无本地 Halo 实例，因此**新增的 `MenuItem` 预置资源加载、返回链接、Ethereal 明暗/色相在真实浏览器中的视觉表现**，需要在站点用「更新插件」上传新 JAR 后确认（同步逻辑已由 jsdom 覆盖）。旧能力（插件加载、Console 菜单、排行榜读写、ReverseProxy 路径）已由线上实测覆盖。**纯前端静态包不依赖 Halo，可直接部署。**
-
-> 2026-11-14 10:38 复核：线上 `app.js` 仍为 11025 字节的首版，说明新 JAR 尚未上传，前台主题适配暂未生效。
+**仍未验证**：本机无 Docker、无本地 Halo 实例，因此**「更新插件」后 Console 菜单消失、旧导航项被清理、以及 `/game2048` 在真实浏览器中的表现**，需要你在站点按上面两步操作后确认（构建契约与片段同源性已由测试覆盖）。旧能力（插件加载、排行榜读写、ReverseProxy 路径）已由线上实测覆盖。**纯前端静态包不依赖 Halo，可直接部署。**
 
 > 构建日志中有一条 `Deprecated Gradle features ... incompatible with Gradle 10` 提示，来自第三方 Gradle 插件，不影响 Gradle 9.4.0 构建；将来升级 Gradle 10 时需同步升级这些插件。
 
@@ -390,10 +383,11 @@ GET|PUT|DELETE /apis/game2048.halo.run/v1alpha1/gamescores/{name}
 - 限流是**单实例内存级**滑动窗口；Halo 集群部署时应改用网关或 Redis 限流。
 - 撤销只保留最近一步。
 - 独立部署版默认只有浏览器本地排行榜（每位访客各存各的）；要全站榜需自建 API 或使用 Halo 插件模式。
-- 预置菜单项绑定 `primary` 主菜单；若站点改过菜单组名，需在后台手工添加自定义链接。插件被禁用时 Halo 会清理预置资源，该菜单项也会随之消失。
-- `menu-item.yaml` 同时写入 `spec` 与 `status` 以兼容主题的渲染取值；若某版 Halo 在加载预置资源时剥离 `status`，菜单可能不渲染，此时用「外观 → 菜单」手工加一条即可。
+- 当前形态下，插件静态页 `/plugins/plugin-game-2048/assets/game/index.html` 仍可直接打开（Halo 插件机制决定，无法禁止）；只是没有任何菜单或链接指向它。要严格只允许 `/game2048`，需在反向代理层拦截该路径。
+- Console UI 源码保留在 `ui/` 但默认不打包；JAR 不含 `ui/ui-plugin.json`，Halo 因此不会注册菜单。恢复方法见「恢复 Console 页面」。
+- 移除 `menu-item.yaml` 后，若之前版本已在导航栏生成过「2048 小游戏」，Halo 更新时未必会清理该对象，需在「外观 → 菜单」手工删除。
 - Ethereal 主题同步依赖**同源** `localStorage`；若把游戏页托管到独立子域/CDN，无法读取站点主题状态，需改用 `theme-bridge.js` 的 `postMessage` 通道或直接设 `theme: 'off'`。
-- ESM 产物要求 Halo >= 2.27.0；若需兼容更旧的 Halo，可在 `ui/vite.config.ts` 里显式设置 `format: "iife"` 并相应调整 `plugin.yaml` 的 `requires` 与 Gradle 复制目录。
+- ESM 产物要求 Halo >= 2.27.0；若需兼容更旧的 Halo，可在 `ui/vite.config.ts` 里显式设置 `format: "iife"` 并相应调整 `plugin.yaml` 的 `requires`。
 
 ## 许可
 

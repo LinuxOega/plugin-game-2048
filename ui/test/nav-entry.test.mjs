@@ -12,7 +12,7 @@ const deployDir = path.join(root, 'deploy');
 const extDir = path.join(root, 'src/main/resources/extensions');
 
 const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
-const menuYaml = fs.readFileSync(path.join(extDir, 'menu-item.yaml'), 'utf8');
+const gradleBuild = fs.readFileSync(path.join(root, 'build.gradle'), 'utf8');
 const HALO_URL = 'https://mlingxi.cn/plugins/plugin-game-2048/assets/game/index.html';
 const GAME_PATH = '/plugins/plugin-game-2048/assets/game/index.html';
 
@@ -32,21 +32,32 @@ function boot({ url = HALO_URL, config } = {}) {
   return dom.window.document;
 }
 
-test('preset MenuItem registers a same-origin entry in the primary menu', () => {
-  const field = (key) => {
-    const match = menuYaml.match(new RegExp(`^\\s*${key}:\\s*(.+)$`, 'm'));
-    return match ? match[1].trim() : null;
-  };
-  assert.equal(field('apiVersion'), 'v1alpha1');
-  assert.equal(field('kind'), 'MenuItem');
-  assert.equal(field('menuName'), 'primary');
-  assert.match(menuYaml, /^  name: plugin-game-2048-nav$/m);
-  assert.equal((menuYaml.match(/href: (.+)$/gm) || []).length, 2,
-    'spec.href and status.href are both set for theme rendering');
-  for (const href of menuYaml.match(/href: (.+)$/gm) || []) {
-    assert.equal(href.replace('href: ', '').trim(), GAME_PATH);
-  }
-  assert.match(menuYaml, /displayName: 2048 小游戏/);
+test('frontend-only build ships no Console UI and no preset navigation item', () => {
+  assert.equal(fs.existsSync(path.join(extDir, 'menu-item.yaml')), false,
+    'no preset MenuItem: the /game2048 custom page is the only linked entry');
+  assert.doesNotMatch(gradleBuild, /processUiResources/,
+    'Vite output must not be copied into the JAR');
+  assert.match(gradleBuild, /exclude 'ui\/\*\*'/,
+    'stale ui/ resources must be excluded from the JAR');
+
+  const pluginYaml = fs.readFileSync(path.join(root, 'src/main/resources/plugin.yaml'), 'utf8');
+  assert.match(pluginYaml, /不注册 Console 菜单/);
+
+  // The standalone game page and its reverse proxy remain unchanged.
+  const proxy = fs.readFileSync(path.join(extDir, 'reverse-proxy.yaml'), 'utf8');
+  assert.match(proxy, /kind: ReverseProxy/);
+  assert.match(proxy, /directory: static\/game/);
+});
+
+test('/game2048 custom-page snippet is same-origin, script-free and slug-annotated', () => {
+  const page = fs.readFileSync(path.join(deployDir, 'ethereal/page.html'), 'utf8');
+  const source = page.replace(/<!--[\s\S]*?-->/g, '');
+  assert.equal(/<script/i.test(source), false, 'no inline script needed');
+  assert.match(source, new RegExp(`src="${GAME_PATH.replace(/\//g, '\\/')}"`),
+    'same-origin relative iframe src');
+  assert.equal(/https?:\/\//.test(source), false, 'no cross-origin URL');
+  assert.match(page, /game2048/, 'documents the required slug');
+  assert.match(page, /唯一入口/);
 });
 
 test('back link appears only on a top-level Halo game page', () => {

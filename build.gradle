@@ -35,17 +35,24 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 21
 }
 
-// The UI build output (ui/build/dist, including ui-plugin.json) is copied into
-// the plugin JAR under resources/ui, which is what Halo 2.11+ reads first.
-tasks.register('processUiResources', Copy) {
-    from project(':ui').layout.buildDirectory.dir('dist')
-    into layout.buildDirectory.dir('resources/main/ui')
-    dependsOn project(':ui').tasks.named('assemble')
-    shouldRunAfter tasks.named('processResources')
+// Frontend-only mode: Halo registers Console menu items from
+// resources/ui/ui-plugin.json, so this plugin intentionally ships no Console UI.
+// The ui/ subproject is still built for its Node test suite and remains the
+// single source of truth for the 2048 algorithm (scripts/build-standalone.mjs).
+// To restore the Console page later, re-add a Copy task from ui/build/dist
+// into build/resources/main/ui and remove the two exclusions below.
+tasks.named('processResources') {
+    doLast {
+        def staleUi = layout.buildDirectory.dir('resources/main/ui').get().asFile
+        if (staleUi.exists()) {
+            staleUi.deleteDir()
+        }
+    }
 }
 
-tasks.named('classes') {
-    dependsOn tasks.named('processUiResources')
+tasks.named('jar') {
+    exclude 'ui/**'
+    exclude 'ui-plugin.json'
 }
 
 halo {
