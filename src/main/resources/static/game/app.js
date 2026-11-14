@@ -211,30 +211,54 @@
         + num(parseFloat(style.marginTop)) + num(parseFloat(style.marginBottom));
     };
 
-    const FRAME_MIN = 420;
+    // A small game is fine; needing to zoom out or scroll the browser is not.
+    // These floors are deliberately low so the whole game stays inside one
+    // 100%-zoom viewport even on short laptop screens or tall theme headers.
+    const FRAME_MIN = 240;
     const FRAME_MAX = 880;
+    const FRAME_GAP = 16;
+    // When the theme header leaves less than this much room, scroll the host
+    // page once to the frame so the game gets a full viewport instead of a tiny
+    // sliver. Either way: open the page and play, no manual scroll / zoom-out.
+    const COMFORT_MIN = 420;
     const BOARD_MAX = 460;
-    const BOARD_MIN = 220;
+    const BOARD_MIN = 180;
     let lastFrame = -1;
     let lastBoard = -1;
     let queued = false;
+    let autoScrolled = false;
 
     function fitFrame() {
       if (!frame || !frame.style) return;
       try {
+        const host = window.parent;
         const viewport = window.parent.innerHeight;
         if (!viewport) return;
-        const top = frame.getBoundingClientRect().top;
-        // frameElement's rect is relative to the host document viewport. While
-        // the iframe is still below the fold (lazy loading, long article),
-        // keep the host page's dvh-based height instead of shrinking it.
-        if (top > viewport * 0.85) return;
-        const offset = Math.max(0, Math.min(num(top), viewport));
+        const top = num(frame.getBoundingClientRect().top);
+        // Older plugin versions created pages with a fixed 720px iframe. Always
+        // resize the host frame to the space that actually remains in the
+        // viewport: shrinking it is exactly what brings the game into the first
+        // screen. Never skip this just because the frame starts low on the page.
+        const offset = Math.max(0, Math.min(top, viewport));
+        const remaining = viewport - offset - FRAME_GAP;
         const wanted = Math.round(Math.max(FRAME_MIN,
-          Math.min(FRAME_MAX, viewport - offset - 24)));
+          Math.min(FRAME_MAX, remaining)));
         if (wanted !== lastFrame) {
           lastFrame = wanted;
           frame.style.height = `${wanted}px`;
+        }
+        if (!autoScrolled && remaining < COMFORT_MIN) {
+          autoScrolled = true;
+          const docTop = top + num(host.scrollY) - 8;
+          if (docTop > 0 && typeof host.scrollTo === 'function') {
+            host.scrollTo(0, docTop);
+            const expanded = Math.round(Math.max(FRAME_MIN,
+              Math.min(FRAME_MAX, viewport - 8 - FRAME_GAP)));
+            if (expanded !== lastFrame) {
+              lastFrame = expanded;
+              frame.style.height = `${expanded}px`;
+            }
+          }
         }
       } catch (e) { /* restricted frame: keep host height */ }
     }

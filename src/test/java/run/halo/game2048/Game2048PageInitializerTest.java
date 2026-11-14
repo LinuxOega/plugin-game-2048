@@ -176,4 +176,39 @@ class Game2048PageInitializerTest {
             "src=\"/plugins/plugin-game-2048/assets/game/index.html\""));
         assertTrue(body.contains("data-game2048"));
     }
+
+    @Test
+    void upgradesLegacyPluginContentInPlace() {
+        var existing = Game2048PageInitializer.buildPage();
+        var legacy = Game2048PageInitializer.buildSnapshot(
+            "<iframe data-game2048 style='height:clamp(720px,92vh,900px)'></iframe>");
+        when(client.fetch(SinglePage.class, Game2048PageInitializer.PAGE_NAME))
+            .thenReturn(Mono.just(existing));
+        when(client.fetch(Snapshot.class, Game2048PageInitializer.SNAPSHOT_NAME))
+            .thenReturn(Mono.just(legacy));
+        when(client.update(any(Snapshot.class)))
+            .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        initializer().ensurePage().block(TIMEOUT);
+
+        verify(client).update(any(Snapshot.class));
+        assertTrue(legacy.getSpec().getRawPatch().contains(Game2048PageInitializer.FIT_MARKER));
+        assertEquals(legacy.getSpec().getRawPatch(), legacy.getSpec().getContentPatch());
+        verify(client, never()).update(any(SinglePage.class));
+    }
+
+    @Test
+    void ownerEditedContentIsNeverReplaced() {
+        var existing = Game2048PageInitializer.buildPage();
+        var custom = Game2048PageInitializer.buildSnapshot("<p>站点自定义内容</p>");
+        when(client.fetch(SinglePage.class, Game2048PageInitializer.PAGE_NAME))
+            .thenReturn(Mono.just(existing));
+        when(client.fetch(Snapshot.class, Game2048PageInitializer.SNAPSHOT_NAME))
+            .thenReturn(Mono.just(custom));
+
+        initializer().ensurePage().block(TIMEOUT);
+
+        verify(client, never()).update(any(Extension.class));
+        assertEquals("<p>站点自定义内容</p>", custom.getSpec().getRawPatch());
+    }
 }
