@@ -1,7 +1,9 @@
-<!-- 2048 小游戏 · Ethereal 主题专用嵌入片段
-     粘贴到文章 HTML 块 / 自定义页面 / 主题模板。零脚本、同源相对路径。
+<!-- 2048 小游戏 · Ethereal 主题专用嵌入片段（域名无关）
+     粘贴到文章 HTML 块 / 自定义页面 / 主题模板。零脚本、同源相对路径，
+     不含固定域名或绝对 URL，任意 Halo 站点直接粘贴即可。
      容器复用 Ethereal 的 --card-bg / --primary / --radius-large 变量，
-     游戏页内部会自动跟随站点的明暗切换与主题色相（同源 localStorage）。 -->
+     游戏页内部会自动跟随站点的明暗切换与主题色相（同源 localStorage）。
+     若 Halo 部署在子路径（如 /blog），把下方两处 /plugins/ 前缀改为 /blog/plugins/。 -->
 <div style="max-width:920px;margin:0 auto;padding:8px;border-radius:var(--radius-large,1rem);background:var(--card-bg,#fff);border:1px solid color-mix(in oklab,var(--primary,#7c6cf0) 16%,transparent);box-shadow:0 6px 24px -16px rgba(0,0,0,.25)">
   <iframe
     src="/plugins/plugin-game-2048/assets/game/index.html"

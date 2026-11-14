@@ -6,6 +6,10 @@
  *    public leaderboard API for the site-wide ranking.
  *  - Opened directly as a local file (or any non-Halo host): falls back to a
  *    browser-local leaderboard so the page is still fully playable.
+ *
+ * Domain-agnostic by design: every URL here is a same-origin, root-relative
+ * path. No hostname, protocol or port is ever hard-coded, so the very same
+ * JAR works at the /game2048 custom page on every site it is installed on.
  */
 (function () {
   'use strict';
@@ -20,11 +24,18 @@
   const NAME_KEY = 'halo-game2048-player';
   const LOCAL_KEY = 'halo-game2048-local-board';
   const DEFAULT_API_BASE = '/apis/api.game2048.halo.run/v1alpha1/scores';
-  const HALO_GAME_PATH = /\/plugins\/plugin-game-2048\/assets\/game\//;
+  // Captures an optional site prefix when Halo is proxied under a sub-path
+  // (e.g. /blog/plugins/...). Only the pathname is inspected: the origin is
+  // never read, so one build serves any domain, protocol and port.
+  const HALO_GAME_PATH = /^(.*?)\/plugins\/plugin-game-2048\/assets\/game\//;
   const HTTP = location.protocol === 'http:' || location.protocol === 'https:';
   const config = (window.GAME2048_CONFIG && typeof window.GAME2048_CONFIG === 'object')
     ? window.GAME2048_CONFIG
     : {};
+  const haloPath = HTTP ? location.pathname.match(HALO_GAME_PATH) : null;
+  const siteBase = typeof config.basePath === 'string'
+    ? config.basePath.replace(/\/+$/, '')
+    : (haloPath ? haloPath[1] : '');
 
   // Mode resolution (most explicit wins):
   //   1. GAME2048_CONFIG.mode = 'local'   -> never touch the network.
@@ -38,8 +49,9 @@
     API_BASE = null;
   } else if (typeof config.apiBase === 'string' && config.apiBase.trim()) {
     API_BASE = config.apiBase.trim();
-  } else if (HTTP && HALO_GAME_PATH.test(location.pathname)) {
-    API_BASE = DEFAULT_API_BASE;
+  } else if (haloPath) {
+    // '' for a root deployment, '/blog' when Halo lives under a sub-path.
+    API_BASE = `${siteBase}${DEFAULT_API_BASE}`;
   }
 
   const $ = (id) => document.getElementById(id);
@@ -67,7 +79,7 @@
   if (backLink && API_BASE && !embedded) {
     backLink.href = typeof config.homeUrl === 'string' && config.homeUrl.trim()
       ? config.homeUrl.trim()
-      : '/';
+      : (siteBase ? `${siteBase}/` : '/');
     backLink.hidden = false;
   }
 

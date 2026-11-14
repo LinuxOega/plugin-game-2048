@@ -13,7 +13,8 @@ const etherealDir = path.join(root, 'deploy/ethereal');
 const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
 const core = fs.readFileSync(path.join(gameDir, 'game-core.js'), 'utf8');
 const app = fs.readFileSync(path.join(gameDir, 'app.js'), 'utf8');
-const HALO_URL = 'https://mlingxi.cn/plugins/plugin-game-2048/assets/game/index.html';
+// Neutral placeholder origin; theme sync only relies on same-origin localStorage.
+const HALO_URL = 'https://your-blog.example.com/plugins/plugin-game-2048/assets/game/index.html';
 const GAME_PATH = '/plugins/plugin-game-2048/assets/game/index.html';
 
 function boot({ url = HALO_URL, config, storage = {} } = {}) {

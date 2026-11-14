@@ -13,7 +13,8 @@ const extDir = path.join(root, 'src/main/resources/extensions');
 
 const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
 const gradleBuild = fs.readFileSync(path.join(root, 'build.gradle'), 'utf8');
-const HALO_URL = 'https://mlingxi.cn/plugins/plugin-game-2048/assets/game/index.html';
+// A neutral placeholder origin: the plugin must behave identically on any host.
+const HALO_URL = 'https://your-blog.example.com/plugins/plugin-game-2048/assets/game/index.html';
 const GAME_PATH = '/plugins/plugin-game-2048/assets/game/index.html';
 
 function boot({ url = HALO_URL, config } = {}) {

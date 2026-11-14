@@ -58,8 +58,12 @@
     <footer class="footer">2048 小游戏 · 成绩仅保存在此浏览器</footer>
   </main>
 
-  <!-- 可选配置：在下方脚本之前设置 window.GAME2048_CONFIG
+  <!-- 访问约定：由 slug=game2048 的自定义页面提供 https://你的域名/game2048。
+       本页不含任何域名配置：站点域名、协议、端口全部由浏览器当前地址自动决定，
+       同一份文件装到任意域名都无需修改、无需重新打包。
+       可选配置：在下方脚本之前设置 window.GAME2048_CONFIG
        { mode: 'local' } 强制本地榜；{ apiBase: 'https://...' } 指向自定义排行榜 API；
+       { basePath: '/blog' } Halo 部署在子路径时指定前缀（默认自动从路径推导）；
        { homeUrl: '/' } 设置顶部「返回博客首页」链接；{ embedded: true } 强制隐藏该链接。
        返回链接仅在 Halo 顶层页面显示，iframe 内与本地模式自动隐藏。
        { theme: 'off' } 关闭 Ethereal 主题跟随；{ theme: 'ethereal' } 强制启用；
