@@ -256,8 +256,4 @@ html.is-embedded .btn, html.is-embedded #player { padding: 6px 10px; }
 html.is-embedded .status { min-height: 0; margin: 2px 0; }
 html.is-embedded .layout { gap: 14px; margin-top: 4px; }
 html.is-embedded .hint { margin-top: 6px; }
-html.is-embedded .rank-panel {
-  padding: 10px;
-  max-height: calc(100dvh - 24px);
-  overflow: auto;
-}
+html.is-embedded .rank-panel { padding: 10px; }
